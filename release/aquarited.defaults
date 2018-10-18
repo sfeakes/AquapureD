@@ -1,0 +1,5 @@
+# Defaults / Configuration options for aquarited
+#
+# -c config file
+
+OPTS = -c /etc/aquarited.conf

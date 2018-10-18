@@ -1,0 +1,120 @@
+
+http://cocoontech.com/forums/topic/13548-intelliflow-pump-rs485-protocol/page-10
+
+ping (hex)          10 02 50 00 62 10 03 
+try to set output   10 02 50 11 0a 7d 10 03 (10 %). 
+
+
+OK, tag got this working for us.  I was able to  send (all in decimal)
+16,2,80,17,10,0,125,16,3  
+and got back
+16,2,0,18,64,0,100, 16,3
+
+So the 64 mean 3200ppm salt?  That is right about what it should be.  Actually, it is about 3400 typically.
+Also, I sent 
+
+16,2,80,0,0,98,16,3
+and got back
+16,2,0,1,0,0,19,16,3
+
+Hi you need to send the percentage every 0.5 second. it will stop being remotely controlled after few seconds of not getting the packet with the setting. you may also just put it on a dedicated rs485 bus.
+
+Here is what I sent and got back:
+
+16,2,80,0,0 => 0,1,0,0
+16,2,80,17,10 =>0,18,70,0 //70 is my ppm, 3500
+16,2,80,20,1 =>0,3,0,65
+The only response that ever changes is the 70 (ppm).  All else are always the same.
+
+Also, I notice the AquaRite does not mind getting extra data.  For example, 
+
+16,2,80,0,98,16,3 = 16,2,80,0,0,98,16,3 = 16,2,80,0,0,0,98,16,3
+
+Got the same response in each case.  I think the normal format is 
+
+Header = 16,2
+Destination 80
+Command = 0 or 17 or 20
+Data = X (only the 17, the set % command, seems to use this)
+Checksum
+End = 16,3
+
+But apparently you can add as many data bytes as you want and it is fine.  
+EDIT: I also found that 21 works as a command, but is almost identical to 17.  It sets the %, but divided by 10.  So 
+16,2,80,21,50 will set the panel to 5%.  
+
+http://www.desert-home.com/2014/07/controlling-hayward-ecostar-pump.html
+// For pump but may be same
+
+Off   0x10, 0x02, 0x0C, 0x01, 0x00, 0x00, 0x00, 0x1F, 0x10, 0x03
+100%  0x10, 0x02, 0x0C, 0x01, 0x00, 0x64, 0x00, 0x83, 0x10, 0x03
+45%   0x10, 0x02, 0x0C, 0x01, 0x00, 0x2D, 0x00, 0x4C, 0x10, 0x03 
+
+The 0x10, 0x02 is the start of packet indicator.  The 0x0C, 0x01 means from device 1 to device 12.  The 0x00 is just a zero, never saw it become anything else.  the 0x00 or 0x64 or 0x2D is the percentage in hex (0, 100, 45)
+
+
+
+packet to retrieve Chlorinator Salt Cell Name: [16, 2, 80, 20, 0]'
+
+Commands
+17  = 0x11   set %
+18  = 0x12   // Reply multiply next value (eg 0x46 or 70) by 50.  is 70*50 = 3500
+
+ID
+80 = 0x50
+
+Returns
+0   = 0x00 ok
+1   = 0x no flow
+2   = 0x Low salt
+4   = 0x High salt
+144 = 0x Clean Salt Cell
+
+// Actually it's a bitwise 
+0:   0x00 "Ok",
+1:   0x01 "No Flow",
+2:   0x02 "Low Salt",
+4:   0x04 "Very Low Salt",
+8:   0x08 "High Currentl",
+16:  0x10 "Clean Cell",
+32:  0x20 "Low Voltage",
+64:  0x40 "Water Temp Low",
+128: 0x "Check Flow/PCB"  ??
+
+
+165,16,15,16,25,22,25,9,128,23,133,0,73,110,116,101,108,108,105,99,104,108,111,114,45,45,52,48,7,232
+above reads ---     Intellichlor--40
+[255, 0, 255, 165, 16, 15, 16, 25, 22, 25, 9, 128, 23, 133, 0, 73, 110, 116, 101, 108, 108, 105, 99, 104, 108, 111, 114, 45, 45, 52, 48, 7, 232]
+Intellichlor--40
+(73,110,116,101,108,108,105,99,104,108,111,114,45,45,52,48)
+
+// Start chlorinator at 50%
+[16, 2, 80, 17, 50]  0x050 0x011 0x32
+
+// 100%
+[16, 2, 80, 17, 100]  0x050 0x011 0x64
+
+// super chlorinate
+[16, 2, 80, 17, 101]  0x050 0x011 0x65
+
+// 0 chlorinate
+[16, 2, 80, 17, 0]  0x050 0x011 0x00
+
+
+0x50 0x14 0x00   // get name
+0x50 0x11 0x00  // set to 0%
+0x50 0x11 0x32  // 50%
+0x50 0x11 0x64  // 100%
+0x50 0x11 0x65  // 101% superchlorinate
+
+Rev L will lock
+Rev MMM (we are locked)
+https://www.poolsupplyunlimited.com/Products/Manuals/Sub53_2012329101223.pdf
+https://www.yumpu.com/en/document/view/11475964/aqualink-rs-software-pcb-revisions-pool-supply-unlimited/6
+Rev N supports Hayward ColorLogic
+
+
+From set percent when not shuting down
+Received  | HEX: 0x10|0x02|0x00|0x16|0x23|0x00|0x00|0x00|0x4b|0x10|0x03|
+From set percent when shutting down
+Received  | HEX: 0x10|0x02|0x00|0x16|0x23|0x09|0x00|0x00|0x54|0x10|0x03|

@@ -26,7 +26,7 @@
 #include "utils.h"
 //#include "web_server.h"
 #include "json_messages.h"
-#include "domoticz.h"
+//#include "domoticz.h"
 #include "aq_mqtt.h"
 
 
@@ -85,7 +85,7 @@ int build_aqualink_error_status_JSON(char* buffer, int size, char *msg)
   return snprintf(buffer, size, "{\"type\": \"status\",\"status\":\"%s\",\"version\":\"xx\",\"time\":\"xx\",\"air_temp\":\"0\",\"pool_temp\":\"0\",\"spa_temp\":\"0\",\"pool_htr_set_pnt\":\"0\",\"spa_htr_set_pnt\":\"0\",\"frz_protect_set_pnt\":\"0\",\"temp_units\":\"f\",\"battery\":\"ok\",\"leds\":{\"Filter_Pump\": \"off\",\"Spa_Mode\": \"off\",\"Aux_1\": \"off\",\"Aux_2\": \"off\",\"Aux_3\": \"off\",\"Aux_4\": \"off\",\"Aux_5\": \"off\",\"Aux_6\": \"off\",\"Aux_7\": \"off\",\"Pool_Heater\": \"off\",\"Spa_Heater\": \"off\",\"Solar_Heater\": \"off\"}}", msg);
 
 }
-
+/*
 int build_homebridge_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
 {
   memset(&buffer[0], 0, size);
@@ -165,7 +165,7 @@ int build_homebridge_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
   
   //return length;
 }
-
+*/
 int build_aqualink_status_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
 {
   //strncpy(buffer, test_message, strlen(test_message)+1);
@@ -378,7 +378,7 @@ bool parseJSONwebrequest(char *buffer, struct JSONwebrequest *request)
   
   return true;
 }
-
+/*
 bool parseJSONmqttrequest(const char *str, size_t len, int *idx, int *nvalue, char *svalue) {
   int i = 0;
   int found = 0;
@@ -429,3 +429,4 @@ bool parseJSONmqttrequest(const char *str, size_t len, int *idx, int *nvalue, ch
   }
   return false;
 }
+*/

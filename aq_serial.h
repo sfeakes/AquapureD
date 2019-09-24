@@ -147,4 +147,5 @@ const char* get_packet_type(unsigned char* packet, int length);
 void send_test_cmd(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
 void send_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
 void send_messaged(int fd, unsigned char destination, char *message);
+void send_probe(int fd, unsigned char destination);
 #endif // AQ_SERIAL_H_

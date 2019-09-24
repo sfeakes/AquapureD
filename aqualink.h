@@ -4,7 +4,7 @@
 
 #include <pthread.h>
 #include "aq_serial.h"
-#include "aq_programmer.h"
+//#include "aq_programmer.h"
 
 #define TIME_CHECK_INTERVAL  3600
 //#define TIME_CHECK_INTERVAL  600
@@ -41,7 +41,7 @@ struct programmingthread {
   pthread_t *thread_id;
   pthread_mutex_t thread_mutex;
   pthread_cond_t thread_cond;
-  program_type ptype;
+  //program_type ptype;
   //void *thread_args;
 };
 

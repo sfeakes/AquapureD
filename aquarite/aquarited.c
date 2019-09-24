@@ -196,7 +196,8 @@ void main_loop() {
 
   mg_mgr_poll(&mgr, 500);
 
-  send_command(rs_fd, AR_ID, CMD_PROBE, 0x62, NUL);
+  send_probe(rs_fd, AR_ID);
+
   logMessage(LOG_DEBUG_SERIAL,"Send Probe\n");
   
   while (_keepRunning == true) {
@@ -219,7 +220,8 @@ void main_loop() {
       // Nothing read
       logMessage(LOG_DEBUG_SERIAL,"Nothing read\n");
       //if (ar_connected == false && no_reply >= PING_POLL) {
-        send_command(rs_fd, AR_ID, CMD_PROBE, 0x62, NUL);
+        //send_command(rs_fd, AR_ID, CMD_PROBE, 0x62, NUL);
+        send_probe(rs_fd, AR_ID);
         //logMessage(LOG_DEBUG_SERIAL,"Send Probe\n");
       //  no_reply = 0;
       //} else {

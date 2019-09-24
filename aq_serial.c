@@ -288,6 +288,37 @@ void send_command(int fd, unsigned char destination, unsigned char b1, unsigned 
   }
 }
 
+void send_probe(int fd, unsigned char destination)
+{
+  const int length = 9;
+  unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, CMD_PROBE, NUL, DLE, ETX, NUL };
+  //unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, NUL, NUL, NUL, 0x13, DLE, ETX, NUL };
+
+  // Update the packet and checksum if command argument is not NUL.
+  ackPacket[3] = destination;
+  ackPacket[5] = generate_checksum(ackPacket, length-1); 
+
+#ifdef BLOCKING_MODE
+  write(fd, ackPacket, length);
+#else
+  int nwrite, i;
+  for (i=0; i<length; i += nwrite) {        
+    nwrite = write(fd, ackPacket + i, length - i);
+    if (nwrite < 0) 
+      logMessage(LOG_ERR, "write to serial port failed\n");
+  }
+  //logMessage(LOG_DEBUG_SERIAL, "Send %d bytes to serial\n",length);
+  //tcdrain(fd);
+  //logMessage(LOG_DEBUG, "Send '0x%02hhx' to '0x%02hhx'\n", command, destination);
+#endif  
+
+  if ( getLogLevel() >= LOG_DEBUG_SERIAL) {
+    char buf[30];
+    sprintf(buf, "Sent     %8.8s ", get_packet_type(ackPacket+1, length));
+    log_packet(buf, ackPacket, length);
+  }
+}
+
 void send_messaged(int fd, unsigned char destination, char *message)
 {
   const int length = 24;

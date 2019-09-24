@@ -18,24 +18,25 @@ $DBG =
 CFLAGS = -Wall $(DBG) $(LIBS) -D MG_DISABLE_MD5 -D MG_DISABLE_HTTP_DIGEST_AUTH -D MG_DISABLE_MD5 -D MG_DISABLE_JSON_RPC
 #CFLAGS = -Wall $(DBG) $(LIBS) -D MG_DISABLE_MQTT -D MG_DISABLE_MD5 -D MG_DISABLE_HTTP_DIGEST_AUTH -D MG_DISABLE_MD5 -D MG_DISABLE_JSON_RPC
 
-INCLUDES = -I/nas/data/Development/Raspberry/aqualink/aqualinkd
+#INCLUDES = -I/nas/data/Development/Raspberry/aqualink/aqualinkd
+INCLUDES = -I./ -I../
 
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # define the C source files
 SRCS = aqualinkd.c utils.c config.c aq_serial.c init_buttons.c aq_programmer.c net_services.c json_messages.c mongoose.c
 
-SL_SRC = serial_logger.c aq_serial.c utils.c
-AL_SRC = aquarite_logger.c aq_serial.c utils.c
+#SL_SRC = serial_logger.c aq_serial.c utils.c
+#AL_SRC = aquarite_logger.c aq_serial.c utils.c
 AR_SRC = aquarite/aquarited.c aquarite/ar_net_services.c aquarite/ar_config.c aq_serial.c utils.c mongoose.c json_messages.c config.c
 
-OBJS = $(SRCS:.c=.o)
+#OBJS = $(SRCS:.c=.o)
 SL_OBJS = $(SL_SRC:.c=.o)
 AL_OBJS = $(AL_SRC:.c=.o)
 AR_OBJS = $(AR_SRC:.c=.o)
 
 # define the executable file
-MAIN = ./release/aqualinkd
+MAIN = ./release/aquarited
 SLOG = ./release/serial_logger
 AQUARITELOG = ./release/aquarite_logger
 AQUARITED = ./release/aquarited

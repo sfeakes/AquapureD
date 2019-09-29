@@ -1,8 +1,8 @@
 #!/bin/bash
 
-CACHE_LIVE="/var/cache/aquarite/aquarite.cache"
-CACHE_PERSISTENT="/var/cache/aquarite/aquarite.cache.persistant"
-LOG="/tmp/aquarited_cache.log"
+CACHE_LIVE="/var/cache/aquapure/aquapure.cache"
+CACHE_PERSISTENT="/var/cache/aquapure/aquapure.cache.persistant"
+LOG="/tmp/aquapured_cache.log"
 
 log()                                                                                                                              
 {

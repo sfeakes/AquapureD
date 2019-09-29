@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ar_config.h"
+#include "ap_config.h"
 #include "utils.h"
 
-void write_cache(struct arconfig *ar_prms) {
+void write_cache(struct apdata *ar_prms) {
   FILE *fp;
 
   fp = fopen(ar_prms->cache_file, "w");
@@ -18,7 +18,7 @@ void write_cache(struct arconfig *ar_prms) {
   fclose(fp);
 }
 
-void read_cache(struct arconfig *ar_prms) {
+void read_cache(struct apdata *ar_prms) {
   FILE *fp;
   int i;
 

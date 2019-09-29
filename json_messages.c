@@ -28,6 +28,8 @@
 #include "json_messages.h"
 //#include "domoticz.h"
 #include "aq_mqtt.h"
+#include "ap_config.h"
+#include "version.h"
 
 
 //#define test_message "{\"type\": \"status\",\"version\": \"8157 REV MMM\",\"date\": \"09/01/16 THU\",\"time\": \"1:16 PM\",\"temp_units\": \"F\",\"air_temp\": \"96\",\"pool_temp\": \"86\",\"spa_temp\": \" \",\"battery\": \"ok\",\"pool_htr_set_pnt\": \"85\",\"spa_htr_set_pnt\": \"99\",\"freeze_protection\": \"off\",\"frz_protect_set_pnt\": \"0\",\"leds\": {\"pump\": \"on\",\"spa\": \"off\",\"aux1\": \"off\",\"aux2\": \"off\",\"aux3\": \"off\",\"aux4\": \"off\",\"aux5\": \"off\",\"aux6\": \"off\",\"aux7\": \"off\",\"pool_heater\": \"off\",\"spa_heater\": \"off\",\"solar_heater\": \"off\"}}"
@@ -37,6 +39,48 @@
 
 //{"type": "aux_labels","Pool Pump": "Pool Pump","Spa Mode": "Spa Mode","Cleaner": "Aux 1","Waterfall": "Aux 2","Spa Blower": "Aux 2","Pool Light": "Aux 4","Spa Light ": "Aux 5","Aux 6": "Aux 6","Aux 7": "Aux 7","Heater": "Heater","Heater": "Heater","Solar Heater": "Solar Heater","(null)": "(null)"}
 
+const char* SWGstatus2test(unsigned char status)
+{
+  switch (status) {
+    case SWG_STATUS_OFF:
+      return "Off";
+    break;
+    case SWG_STATUS_OFFLINE:
+      return "Offline";
+    break;
+    case SWG_STATUS_ON:
+      return "Generating Salt";
+    break;
+    case SWG_STATUS_NO_FLOW:
+      return "No flow";
+    break;
+    case SWG_STATUS_LOW_SALT:
+      return "Low Salt";
+    break;
+    case SWG_STATUS_HI_SALT:
+      return "High Salt";
+    break;
+    case SWG_STATUS_CLEAN_CELL:
+      return "Clean Cell";
+    break;
+    case SWG_STATUS_TURNING_OFF:
+      return "Turning Off";
+    break;
+    case SWG_STATUS_HIGH_CURRENT:
+      return "High Current";
+    break;
+    case SWG_STATUS_LOW_VOLTS:
+      return "Low Volts";
+    break;
+    case SWG_STATUS_LOW_TEMP:
+      return "Low Temp";
+    break;
+    case SWG_STATUS_CHECK_PCB:
+      return "Check PCB";
+    break;
+  }
+  return "";
+}
 
 const char* getStatus(struct aqualinkdata *aqdata)
 {
@@ -51,8 +95,8 @@ const char* getStatus(struct aqualinkdata *aqdata)
   return JSON_READY; 
 }
 
-
-int build_mqtt_status_JSON(char* buffer, int size, int idx, int nvalue, float tvalue/*char *svalue*/)
+/*
+int build_mqtt_status_JSON(char* buffer, int size, int idx, int nvalue, float tvalue)
 {
   memset(&buffer[0], 0, size);
   int length = 0;
@@ -78,82 +122,71 @@ int build_mqtt_status_message_JSON(char* buffer, int size, int idx, int nvalue, 
   buffer[length] = '\0';
   return strlen(buffer);
 }
-
+*/
 int build_aqualink_error_status_JSON(char* buffer, int size, char *msg)
 {
   //return snprintf(buffer, size, "{\"type\": \"error\",\"status\":\"%s\"}", msg);
   return snprintf(buffer, size, "{\"type\": \"status\",\"status\":\"%s\",\"version\":\"xx\",\"time\":\"xx\",\"air_temp\":\"0\",\"pool_temp\":\"0\",\"spa_temp\":\"0\",\"pool_htr_set_pnt\":\"0\",\"spa_htr_set_pnt\":\"0\",\"frz_protect_set_pnt\":\"0\",\"temp_units\":\"f\",\"battery\":\"ok\",\"leds\":{\"Filter_Pump\": \"off\",\"Spa_Mode\": \"off\",\"Aux_1\": \"off\",\"Aux_2\": \"off\",\"Aux_3\": \"off\",\"Aux_4\": \"off\",\"Aux_5\": \"off\",\"Aux_6\": \"off\",\"Aux_7\": \"off\",\"Pool_Heater\": \"off\",\"Spa_Heater\": \"off\",\"Solar_Heater\": \"off\"}}", msg);
 
 }
-/*
-int build_homebridge_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
+
+
+//int build_status_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
+int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homekit)
 {
   memset(&buffer[0], 0, size);
   int length = 0;
-  int i;
+  //int i;
 
-  length += sprintf(buffer+length, "{\"type\": \"devices\",");
-  length += sprintf(buffer+length,  " \"devices\": [");
+  bool homekit_f = (homekit && _apconfig_.temp_units==FAHRENHEIT);
+
+  length += sprintf(buffer+length, "{\"type\": \"devices\"");
+  length += sprintf(buffer+length, ",\"version\":\"%s\"",AQUAPURED_VERSION );
+  length += sprintf(buffer+length, ",\"name\":\"%s\"",AQUAPURED_NAME );
+  length += sprintf(buffer+length, ",\"fullstatus\":\"%s\"",SWGstatus2test(aqdata->status));
+  length += sprintf(buffer+length,  ", \"devices\": [");
   
-  for (i=0; i < TOTAL_BUTTONS; i++) 
-  {
-    if ( strcmp(BTN_POOL_HTR,aqdata->aqbuttons[i].name) == 0 && aqdata->pool_htr_set_point != TEMP_UNKNOWN) {
-      length += sprintf(buffer+length, "{\"type\": \"setpoint_themo\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%d\", \"spvalue\": \"%d\", \"value\": \"%d\" },",
-                                     aqdata->aqbuttons[i].name, 
-                                     aqdata->aqbuttons[i].label,
-                                     aqdata->aqbuttons[i].led->state==ON?"on":"off",
-                                     aqdata->aqbuttons[i].led->state,
-                                     aqdata->pool_htr_set_point,
-                                     aqdata->pool_temp);
-    } else if ( strcmp(BTN_SPA_HTR,aqdata->aqbuttons[i].name)==0 && aqdata->spa_htr_set_point != TEMP_UNKNOWN) {
-      length += sprintf(buffer+length, "{\"type\": \"setpoint_themo\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%d\", \"spvalue\": \"%d\", \"value\": \"%d\" },",
-                                     aqdata->aqbuttons[i].name, 
-                                     aqdata->aqbuttons[i].label,
-                                     aqdata->aqbuttons[i].led->state==ON?"on":"off",
-                                     aqdata->aqbuttons[i].led->state,
-                                     aqdata->spa_htr_set_point,
-                                     aqdata->spa_temp);
-    } else {
-      length += sprintf(buffer+length, "{\"type\": \"switch\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%d\" },", 
-                                     aqdata->aqbuttons[i].name, 
-                                     aqdata->aqbuttons[i].label,
-                                     aqdata->aqbuttons[i].led->state==ON?"on":"off",
-                                     aqdata->aqbuttons[i].led->state);
-    }
-  }
+  //if ( aqdata->Percent != TEMP_UNKNOWN ) {
+    length += sprintf(buffer+length, "{\"type\": \"setpoint_swg\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\", \"spvalue\": \"%.*f\", \"value\": \"%.*f\", \"extended_status\": \"%d\" },",
+                                     SWG_TOPIC,
+                                    "Salt Water Generator",
+                                    aqdata->status == SWG_STATUS_ON?JSON_ON:JSON_OFF,
+                                    aqdata->status == SWG_STATUS_ON?JSON_ON:JSON_OFF,
+                                    ((homekit)?2:0),
+                                    ((homekit_f)?degFtoC(aqdata->Percent):aqdata->Percent),
+                                    ((homekit)?2:0),
+                                    ((homekit_f)?degFtoC(aqdata->Percent):aqdata->Percent),
+                                    aqdata->status);
 
-  //FREEZE_PROTECT  // could add freeze setpoint in future.
+    //length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" },",
+    length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%.*f\" },",
+                                   ((homekit_f)?SWG_PERCENT_F_TOPIC:SWG_PERCENT_TOPIC),
+                                   "Salt Water Generator Percent",
+                                   "on",
+                                   ((homekit_f)?2:0),
+                                   ((homekit_f)?degFtoC(aqdata->Percent):aqdata->Percent));
+  //}
 
-  if ( aqdata->swg_percent != TEMP_UNKNOWN ) {
-    length += sprintf(buffer+length, "{\"type\": \"setpoint_swg\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"spvalue\": \"%d\", \"value\": \"%d\" },",
-                                     SWG_PERCENT_TOPIC,
-                                    "Salt Water Genrator %",
-                                    aqdata->ar_swg_status == 0x00?"on":"off",
-                                    aqdata->swg_percent,
-                                    aqdata->swg_percent);
+  if ( aqdata->PPM != TEMP_UNKNOWN ) {
 
-    length += sprintf(buffer+length, "{\"type\": \"Value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" },",
+    length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%.*f\" },",
+                                   ((homekit_f)?SWG_PPM_F_TOPIC:SWG_PPM_TOPIC),
+                                   "Salt Level PPM",
+                                   "on",
+                                   ((homekit)?2:0),
+                                   ((homekit_f)?roundf(degFtoC(aqdata->PPM)):aqdata->PPM)); 
+                                   
+                                  /*
+   length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" },",
                                    SWG_PPM_TOPIC,
-                                   "Salt Water Generator PPM",
+                                   "Salt Level PPM",
                                    "on",
                                    aqdata->swg_ppm);
+                                   */
   }
 
-  length += sprintf(buffer+length, "{\"type\": \"Temperature\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" },",
-                                   AIR_TEMPERATURE,
-                                   "Pool Air Temperature",
-                                   "on",
-                                   aqdata->air_temp);
-  length += sprintf(buffer+length, "{\"type\": \"Temperature\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" },",
-                                   POOL_TEMPERATURE,
-                                   "Pool Water Temperature",
-                                   "on",
-                                   aqdata->pool_temp);
-  length += sprintf(buffer+length, "{\"type\": \"Temperature\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" }",
-                                   SPA_TEMPERATURE,
-                                   "Spa Water Temperature",
-                                   "on",
-                                   aqdata->spa_temp);
+  if (buffer[length-1] == ',')
+    length--;
 
   length += sprintf(buffer+length, "]}");
 
@@ -162,11 +195,11 @@ int build_homebridge_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
   buffer[length] = '\0';
 
   return strlen(buffer);
-  
-  //return length;
+
 }
-*/
-int build_aqualink_status_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
+
+/*
+int build_aquapure_status_JSON(struct apdata *aqdata, char* buffer, int size)
 {
   //strncpy(buffer, test_message, strlen(test_message)+1);
   //return strlen(test_message);
@@ -177,119 +210,28 @@ int build_aqualink_status_JSON(struct aqualinkdata *aqdata, char* buffer, int si
   int i;
 
   length += sprintf(buffer+length, "{\"type\": \"status\"");
-  length += sprintf(buffer+length, ",\"status\":\"%s\"",getStatus(aqdata) );
-  //length += sprintf(buffer+length, ",\"message\":\"%s\"",aqdata->message );
-  length += sprintf(buffer+length, ",\"version\":\"%s\"",aqdata->version );//8157 REV MMM",
-  length += sprintf(buffer+length, ",\"date\":\"%s\"",aqdata->date );//"09/01/16 THU",
-  length += sprintf(buffer+length, ",\"time\":\"%s\"",aqdata->time );//"1:16 PM",
-  //length += sprintf(buffer+length, ",\"air_temp\":\"%d\"",aqdata->air_temp );//"96",
-  //length += sprintf(buffer+length, ",\"pool_temp\":\"%d\"",aqdata->pool_temp );//"86",
-  //length += sprintf(buffer+length, ",\"spa_temp\":\"%d\"",aqdata->spa_temp );//" ",
-  
-  length += sprintf(buffer+length, ",\"pool_htr_set_pnt\":\"%d\"",aqdata->pool_htr_set_point );//"85",
-  length += sprintf(buffer+length, ",\"spa_htr_set_pnt\":\"%d\"",aqdata->spa_htr_set_point );//"99",
-  //length += sprintf(buffer+length, ",\"freeze_protection":\"%s\"",aqdata->frz_protect_set_point );//"off",
-  length += sprintf(buffer+length, ",\"frz_protect_set_pnt\":\"%d\"",aqdata->frz_protect_set_point );//"0",
-  
-  if ( aqdata->air_temp == TEMP_UNKNOWN )
-    length += sprintf(buffer+length, ",\"air_temp\":\" \"");
-  else
-    length += sprintf(buffer+length, ",\"air_temp\":\"%d\"",aqdata->air_temp );
-  
-  if ( aqdata->pool_temp == TEMP_UNKNOWN )
-    length += sprintf(buffer+length, ",\"pool_temp\":\" \"");
-  else
-    length += sprintf(buffer+length, ",\"pool_temp\":\"%d\"",aqdata->pool_temp );
-    
-  if ( aqdata->spa_temp == TEMP_UNKNOWN )
-    length += sprintf(buffer+length, ",\"spa_temp\":\" \"");
-  else
-    length += sprintf(buffer+length, ",\"spa_temp\":\"%d\"",aqdata->spa_temp );
+  length += sprintf(buffer+length, ",\"version\":\"%s\"",AQUAPURED_VERSION );
+  length += sprintf(buffer+length, ",\"name\":\"%s\"",AQUAPURED_NAME );
+  length += sprintf(buffer+length, ",\"fullstatus\":\"%s\"",SWGstatus2test(aqdata->status));
 
-  if ( aqdata->swg_percent != TEMP_UNKNOWN )
-    length += sprintf(buffer+length, ",\"swg_percent\":\"%d\"",aqdata->swg_percent );
+  if ( aqdata->Percent != TEMP_UNKNOWN )
+    length += sprintf(buffer+length, ",\"swg_percent\":\"%d\"",aqdata->Percent );
   
-  if ( aqdata->swg_ppm != TEMP_UNKNOWN )
-    length += sprintf(buffer+length, ",\"swg_ppm\":\"%d\"",aqdata->swg_ppm );
+  if ( aqdata->PPM != TEMP_UNKNOWN )
+    length += sprintf(buffer+length, ",\"swg_ppm\":\"%d\"",aqdata->PPM );
 
-  if ( aqdata->temp_units == FAHRENHEIT )
-    length += sprintf(buffer+length, ",\"temp_units\":\"%s\"",JSON_FAHRENHEIT );
-  else if ( aqdata->temp_units == CELSIUS )
-    length += sprintf(buffer+length, ",\"temp_units\":\"%s\"", JSON_CELSIUS);
-  else
-    length += sprintf(buffer+length, ",\"temp_units\":\"%s\"",JSON_UNKNOWN );
-  
-  if (aqdata->battery == OK)
-    length += sprintf(buffer+length, ",\"battery\":\"%s\"",JSON_OK );//"ok",
-  else
-    length += sprintf(buffer+length, ",\"battery\":\"%s\"",JSON_LOW );//"ok",
-  
-  length += sprintf(buffer+length, ",\"leds\":{" );
-  for (i=0; i < TOTAL_BUTTONS; i++) 
-  {
-    char *state;
-    switch (aqdata->aqbuttons[i].led->state)
-    {
-      case ON:
-        state = JSON_ON;
-      break;
-      case OFF:
-      case LED_S_UNKNOWN:
-        state = JSON_OFF;
-      break;
-      case FLASH:
-        state = JSON_FLASH;
-      break;
-      case ENABLE:
-        state = JSON_ENABLED;
-      break;
-    }    
-    length += sprintf(buffer+length, "\"%s\": \"%s\"", aqdata->aqbuttons[i].name, state);
-    
-    if (i+1 < TOTAL_BUTTONS)
-      length += sprintf(buffer+length, "," );
-  }
-  length += sprintf(buffer+length, "}}" );
+ 
+  length += sprintf(buffer+length, ",\"leds\":{\"%s\": \"%s\"}", SWG_TOPIC, aqdata->status == 0x00?JSON_ON:JSON_OFF);
+
+  length += sprintf(buffer+length, "}" );
   
   buffer[length] = '\0';
- 
- /*
-  buffer[length] = '\0';
-  
-  strncpy(buffer2, test_message, strlen(test_message)+1);
-   
-  for (i=0; i < strlen(buffer); i++) {
-    logMessage (LOG_DEBUG, "buffer[%d] = '%c' | '%c'\n",i,buffer[i],buffer2[i]);
-  }
-  
-  logMessage (LOG_DEBUG, "JSON Size %d\n",strlen(buffer));
-  printf("%s\n",buffer);
-  for (i=strlen(buffer); i > strlen(buffer)-10; i--) {
-    logMessage (LOG_DEBUG, "buffer[%d] = '%c'\n",i,buffer[i]);
-  }
-  for (i=10; i >= 0; i--) {
-    logMessage (LOG_DEBUG, "buffer[%d] = '%c'\n",i,buffer[i]);
-  }
-  
-  //return length-1;
-  
- 
-  logMessage (LOG_DEBUG, "JSON Size %d\n",strlen(buffer2));
-  printf("%s\n",buffer2);
-  for (i=strlen(buffer2); i > strlen(buffer2)-10; i--) {
-    logMessage (LOG_DEBUG, "buffer[%d] = '%c'\n",i,buffer2[i]);
-  }
-  for (i=10; i >= 0; i--) {
-    logMessage (LOG_DEBUG, "buffer[%d] = '%c'\n",i,buffer2[i]);
-  }
-  //return strlen(test_message);
-  */
-  
-  //printf("Buffer = %d, JSON = %d",size ,strlen(buffer));
+
   
   return strlen(buffer);
 }
-
+*/
+/*
 int build_aux_labels_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
 {
   memset(&buffer[0], 0, size);
@@ -378,55 +320,155 @@ bool parseJSONwebrequest(char *buffer, struct JSONwebrequest *request)
   
   return true;
 }
-/*
-bool parseJSONmqttrequest(const char *str, size_t len, int *idx, int *nvalue, char *svalue) {
-  int i = 0;
-  int found = 0;
-  
-  svalue[0] = '\0';
-
-  for (i = 0; i < len && str[i] != '\0'; i++) {
-    if (str[i] == '"') {
-      if (strncmp("\"idx\"", (char *)&str[i], 5) == 0) {
-        i = i + 5;
-        for (; str[i] != ',' && str[i] != '\0'; i++) {
-          if (str[i] == ':') {
-            *idx = atoi(&str[i + 1]);
-            found++;
-          }
-        }
-        //if (*idx == 45) 
-        //  printf("%s\n",str);
-      } else if (strncmp("\"nvalue\"", (char *)&str[i], 8) == 0) {
-        i = i + 8;
-        for (; str[i] != ',' && str[i] != '\0'; i++) {
-          if (str[i] == ':') {
-            *nvalue = atoi(&str[i + 1]);
-            found++;
-          }
-        }
-      } else if (strncmp("\"svalue1\"", (char *)&str[i], 9) == 0) {
-        i = i + 9;
-        for (; str[i] != ',' && str[i] != '\0'; i++) {
-          if (str[i] == ':') {
-            while(str[i] == ':' || str[i] == ' ' || str[i] == '"' || str[i] == '\'') i++;
-            int j=i+1;
-            while(str[j] != '"' && str[j] != '\'' && str[j] != ',' && str[j] != '}') j++;
-            strncpy(svalue, &str[i], ((j-i)>DZ_SVALUE_LEN?DZ_SVALUE_LEN:(j-i)));
-            svalue[((j-i)>DZ_SVALUE_LEN?DZ_SVALUE_LEN:(j-i))] = '\0'; // Simply force the last termination
-            found++;
-          }
-        }
-      } 
-      if (found >= 4) {
-        return true;
-      }
-    }
-  }
-  // Just incase svalue is not found, we really don;t care for most devices.
-  if (found >= 2) {
-    return true;
-  }
-  return false;
-}
 */
+
+
+bool parseJSONwebrequest(char *buffer, struct JSONwebrequest *request)
+{
+  int i=0;
+  int found=0;
+  bool reading = false;
+
+  request->first.key    = NULL;
+  request->first.value  = NULL;
+  request->second.key   = NULL;
+  request->second.value = NULL;
+  request->third.key   = NULL;
+  request->third.value = NULL;
+
+  int length = strlen(buffer);
+
+  while ( i < length )
+  {
+//printf ("Reading %c",buffer[i]);
+    switch (buffer[i]) {
+    case '{':
+    case '"':
+    case '}':
+    case ':':
+    case ',':
+    case ' ':
+      // Ignore space , : if reading a string
+      if (reading == true && buffer[i] != ' ' && buffer[i] != ',' && buffer[i] != ':'){
+ //printf (" <-  END");
+        reading = false;
+        buffer[i] = '\0';
+        found++;
+      }
+      break;
+      
+    default:
+      if (reading == false) {
+//printf (" <-  START");
+        reading = true;
+        switch(found) {
+        case 0:
+          request->first.key = &buffer[i];
+          break;
+        case 1:
+          request->first.value = &buffer[i];
+          break;
+        case 2:
+          request->second.key = &buffer[i];
+          break;
+        case 3:
+          request->second.value = &buffer[i];
+          break;
+        case 4:
+          request->third.key = &buffer[i];
+          break;
+        case 5:
+          request->third.value = &buffer[i];
+          break;
+        }
+      }
+      break;
+    }
+//printf ("\n");
+//    if (found >= 4)
+    if (found >= 6)
+    break;
+    
+    i++;
+  }
+  
+  return true;
+}
+
+char *jsontok(jsontoken *jt) {
+  //int i = jt->position;
+  int j;
+  jt->key_ptr = NULL;
+  jt->val_ptr = NULL;
+  jt->key_len = 0;
+  jt->val_len = 0;
+  bool subset = 0;
+  bool inquotes = false;
+
+  while(jt->json[jt->pos] == ' ' || jt->json[jt->pos] == '{' || jt->json[jt->pos] == '"' || jt->json[jt->pos] <= 31) {
+    if(jt->json[jt->pos] == '"')
+      inquotes = !inquotes;
+    jt->pos++;
+  }
+
+  jt->key_ptr = (char *)&jt->json[jt->pos];
+
+  while (jt->pos < jt->json_len ) {
+    switch (jt->json[jt->pos]){
+      case '{':
+      case '[':
+        subset++;
+      break;
+      case '}':
+      case ']':
+        subset--;
+      break;
+      case '"':
+        inquotes = !inquotes;
+      break;
+
+      case ':':
+        // force move to value and error if no key
+        if (subset==0 && !inquotes && jt->key_ptr != NULL && jt->key_len == 0) {
+          j=jt->pos-1;
+          while(jt->json[j] == ' ' || jt->json[j] == '"' || jt->json[j] <= 31){j--;}
+          jt->key_len =  &jt->json[j+1] - jt->key_ptr;
+
+          j=jt->pos+1;
+          while(jt->json[j] == ' ' || jt->json[j] == '"' || jt->json[j] <= 31) {j++;}
+          jt->val_ptr = (char *)&jt->json[j];
+          
+        } else if (subset==0 && !inquotes) {
+          printf("Don't know what to do, received ':' out of sequance\n");
+        }
+      break;
+      case ',':
+        // We need to end if value is started, error if not
+        if (subset==0 && !inquotes && jt->key_len != 0 && jt->val_len == 0 && jt->val_ptr != NULL) {
+          j=jt->pos-1;
+          while(jt->json[j] == ' ' || jt->json[j] == '"' || jt->json[j] <= 31){j--;}
+          jt->val_len =  &jt->json[j+1] - jt->val_ptr;
+
+          jt->pos++;
+          // Handle blank value
+          if (jt->val_len < 0) jt->val_len=0;
+          return (char *)&jt->json[jt->pos+1];
+        } else if (subset==0 && !inquotes) {
+          printf("Don't know what to do, received ','\n");
+        }
+      break;
+    }
+    jt->pos++;
+  }
+ 
+  if (jt->val_ptr != NULL) {
+    j=jt->pos-1;
+    while(jt->json[j] == '}' || jt->json[j] == ' ' || jt->json[j] == '"' || jt->json[j] <= 31){j--;}
+    jt->val_len =  &jt->json[j+1] - jt->val_ptr;
+    // Handle blank value
+    if (jt->val_len < 0) jt->val_len=0;
+    return (char *)&jt->json[jt->pos+1];
+  }
+
+  return NULL;
+}

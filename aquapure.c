@@ -10,21 +10,23 @@
 #include "mongoose.h"
 #include "aq_serial.h"
 #include "config.h"
-#include "ar_config.h"
+#include "ap_config.h"
 
 #include "utils.h"
-#include "ar_net_services.h"
+#include "ap_net_services.h"
 
 //#define SLOG_MAX 80
 //#define PACKET_MAX 10000
-#define CACHE_FILE "/tmp/aquarite.cache"
+#define CACHE_FILE "/tmp/aquapure.cache"
 
 #define TIMEOUT_TRIES 10
 
 #define AR_ID 0x50
 
-struct aqconfig _config;
-struct arconfig _ar_prms;
+//extern apconfig _apconfig_;
+
+//struct aqconfig _config;
+struct apdata _ar_prms;
 
 bool _keepRunning = true;
 //int _percentsalt_ = 50;
@@ -87,25 +89,25 @@ void debugPacketPrint(unsigned char ID, unsigned char *packet_buffer, int packet
 }
 
 void debugStatusPrint() {
-  if (_ar_prms.status == 0x00) {
+  if (_ar_prms.status == SWG_STATUS_ON) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - OK ***\n");
-  } else if (_ar_prms.status == 0x01) {
+  } else if (_ar_prms.status == SWG_STATUS_NO_FLOW) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - NO FLOW ***\n");
-  } else if (_ar_prms.status == 0x02) {
+  } else if (_ar_prms.status == SWG_STATUS_LOW_SALT) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - LOW SALT ***\n");
-  } else if (_ar_prms.status == 0x04) {
-    logMessage(LOG_DEBUG_SERIAL, "*** Received status - VERY LOW SALT ***\n");
-  } else if (_ar_prms.status == 0x08) {
+  } else if (_ar_prms.status == SWG_STATUS_HI_SALT) {
+    logMessage(LOG_DEBUG_SERIAL, "*** Received status - HIGH SALT ***\n");
+  } else if (_ar_prms.status == SWG_STATUS_HIGH_CURRENT) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - HIGH CURRENT ***\n");
-  } else if (_ar_prms.status == 0x09) {
+  } else if (_ar_prms.status == SWG_STATUS_TURNING_OFF) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - TURNING OFF ***\n");
-  } else if (_ar_prms.status == 0x10) {
+  } else if (_ar_prms.status == SWG_STATUS_CLEAN_CELL) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - CLEAN CELL ***\n");
-  } else if (_ar_prms.status == 0x20) {
+  } else if (_ar_prms.status == SWG_STATUS_LOW_VOLTS) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - LOW VOLTAGE ***\n");
-  } else if (_ar_prms.status == 0x40) {
+  } else if (_ar_prms.status == SWG_STATUS_LOW_TEMP) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - WATER TEMP LOW ***\n");
-  } else if (_ar_prms.status == 0x80) {
+  } else if (_ar_prms.status == SWG_STATUS_CHECK_PCB) {
     logMessage(LOG_DEBUG_SERIAL, "*** Received status - CHECK PCB ***\n");
   }
 }
@@ -125,37 +127,46 @@ int main(int argc, char *argv[]) {
   //struct config arconf;
   //struct aqconfig config;
   //struct arconfig ar_prms;
+  bool deamonize;
 
-  char *cfgFile = "aquarited.conf";
+  char *cfgFile = "aquapured.conf";
 
   if (getuid() != 0) {
     fprintf(stderr, "ERROR %s Can only be run as root\n", argv[0]);
     return EXIT_FAILURE;
   }
 
-  _ar_prms.PPM = TEMP_UNKNOWN;
+  _ar_prms.PPM = 0;
   _ar_prms.Percent = 50;
   _ar_prms.generating = false;
   _ar_prms.cache_file = CACHE_FILE;
+  _ar_prms.changed = true;
 
   // Initialize the daemon's parameters.
-  init_parameters(&_config);
+  //init_parameters();
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-d") == 0) {
-      _config.deamonize = false;
+      deamonize = false;
     } else if (strcmp(argv[i], "-c") == 0) {
       cfgFile = argv[++i];
     }
   }
 
-  readCfg(&_config, NULL, cfgFile);
-  setLoggingPrms(_config.log_level, _config.deamonize, _config.log_file);
+#ifdef TESTING
+  deamonize = false;
+  cfgFile = "./release/aquapured.test.conf";
+#endif
+  init_parameters(deamonize);
+  readCfg(cfgFile);
+
+  setLoggingPrms(_apconfig_.log_level, _apconfig_.deamonize, _apconfig_.log_file);
 
   read_cache(&_ar_prms);
   
+//printf("MQTT = %s\n",_apconfig_.mqtt_server);
 
-  if (_config.deamonize == true) {
+  if (_apconfig_.deamonize == true) {
     char pidfile[256];
     // sprintf(pidfile, "%s/%s.pid",PIDLOCATION, basename(argv[0]));
     sprintf(pidfile, "%s/%s.pid", "/run", basename(argv[0]));
@@ -173,21 +184,21 @@ void main_loop() {
   unsigned char packet_buffer[AQ_MAXPKTLEN];
   int no_reply = 0;
   struct mg_mgr mgr;
-  bool sendUpdate = false;
+  //bool sendUpdate = false;
   bool broadcast = true;
   int cnt=0;
 
-  logMessage(LOG_DEBUG, "Starting aquarited!\n");
+  logMessage(LOG_DEBUG, "Starting aquapured!\n");
 
-  if (!start_net_services(&mgr, &_config, &_ar_prms)) {
+  if (!start_net_services(&mgr, &_ar_prms)) {
     logMessage(LOG_ERR, "Can not start mqtt on port\n");
     exit(EXIT_FAILURE);
   }
 
-  rs_fd = init_serial_port(_config.serial_port);
+  rs_fd = init_serial_port(_apconfig_.serial_port);
 
   if (rs_fd < 0) {
-    logMessage(LOG_ERR, "Can not open serial port '%s'\n",_config.serial_port);
+    logMessage(LOG_ERR, "Can not open serial port '%s'\n",_apconfig_.serial_port);
     exit(EXIT_FAILURE);
   }
 
@@ -208,7 +219,7 @@ void main_loop() {
     }
     
     if (broadcast == false)
-      broadcast = broadcast_aquaritestate(mgr.active_connections);
+      broadcast = broadcast_aquapurestate(mgr.active_connections);
 
     packet_length = get_packet(rs_fd, packet_buffer);
 
@@ -229,13 +240,19 @@ void main_loop() {
         if (no_reply >= TIMEOUT_TRIES) {
           logMessage(LOG_DEBUG_SERIAL,"*** %d BLANK READS *****\n",no_reply);
           if (_ar_prms.ar_connected == true || _ar_prms.generating == true) {
-             _ar_prms.ar_connected = false;
-             _ar_prms.generating = false;
-             broadcast = broadcast_aquaritestate(mgr.active_connections);
-          }/*
+            //sendUpdate = true;
+            _ar_prms.changed = true;
+          }
+          _ar_prms.ar_connected = false;
+          _ar_prms.generating = false;
+          _ar_prms.status = SWG_STATUS_OFFLINE;
+          
+          //if (sendUpdate)
+          //  broadcast = broadcast_aquapurestate(mgr.active_connections);
+          /*
           if (_ar_prms.generating == true) {
             _ar_prms.generating = false;
-            broadcast = broadcast_aquaritestate(mgr.active_connections);
+            broadcast = broadcast_aquapurestate(mgr.active_connections);
           }*/
           //ar_prms.generating = false;
           no_reply = 0;
@@ -254,7 +271,7 @@ void main_loop() {
           if (_ar_prms.generating == false) {
             // Chlorinator Translator =   GetID | HEX: 0x10|0x02|0x50|0x14|0x00|0x76|0x10|0x03|
             // AquaLinkRD To 0x50 of type GetID | HEX: 0x10|0x02|0x50|0x14|0x01|0x77|0x10|0x03|
-            send_command(rs_fd, AR_ID, CMD_GETID, 0x01, 0x77); // Returns AquaPure or AquaRite
+            send_command(rs_fd, AR_ID, CMD_GETID, 0x01, 0x77); // Returns AquaPure or aquapure
             //send_command(rs_fd, AR_ID, CMD_GETID, 0x00, 0x76); // Returns BOOTS
             //logMessage(LOG_DEBUG_SERIAL,"Send Get Status/ID\n");
           } else {
@@ -264,35 +281,39 @@ void main_loop() {
           break;
         case CMD_PPM:
           logMessage(LOG_DEBUG_SERIAL,"Received PPM %d\n", (packet_buffer[4] * 100));
-          sendUpdate = false;
+          //sendUpdate = false;
 
           if (_ar_prms.status != packet_buffer[5]) {
             _ar_prms.status = packet_buffer[5];
-            sendUpdate = true;
+            //sendUpdate = true;
+            _ar_prms.changed = true;
           }
 
           if (_ar_prms.status == 0x00 || _ar_prms.status == 0x04 || _ar_prms.status == 0x20) {
             if (_ar_prms.PPM != packet_buffer[4] * 100) {
               _ar_prms.PPM = packet_buffer[4] * 100;
-              //broadcast_aquaritestate(mgr.active_connections);
-              sendUpdate = true;
+              //broadcast_aquapurestate(mgr.active_connections);
+              //sendUpdate = true;
+              _ar_prms.changed = true;
               write_cache(&_ar_prms);
             }
             if (_ar_prms.generating == false) {
               _ar_prms.generating = true;
-              //broadcast_aquaritestate(mgr.active_connections);
-              sendUpdate = true;
+              //broadcast_aquapurestate(mgr.active_connections);
+              //sendUpdate = true;
+              _ar_prms.changed = true;
             }
           } else {
             if (_ar_prms.generating == true) {
               _ar_prms.generating = false;
-              //broadcast_aquaritestate(mgr.active_connections);
-              sendUpdate = true;
+              //broadcast_aquapurestate(mgr.active_connections);
+              //sendUpdate = true;
+              _ar_prms.changed = true;
             }
           }
 
-          if (sendUpdate)
-            broadcast = broadcast_aquaritestate(mgr.active_connections);
+          //if (sendUpdate)
+          //  broadcast = broadcast_aquapurestate(mgr.active_connections);
 
           if (getLogLevel() >= LOG_DEBUG_SERIAL && _ar_prms.status != 0x00)
             debugStatusPrint();
@@ -310,8 +331,15 @@ void main_loop() {
 
       //printf("Packets received %d\n", received_packets++);
     }
+
     //sleep(1);
     check_net_services(&mgr);
+    
+    if ( _ar_prms.changed == true ) {
+      broadcast = broadcast_aquapurestate(mgr.active_connections);
+      _ar_prms.changed = false;
+    }
+
     mg_mgr_poll(&mgr, 500);
     
     if (cnt >= 600) {

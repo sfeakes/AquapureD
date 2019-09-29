@@ -14,6 +14,8 @@
  *  https://github.com/sfeakes/aqualinkd
  */
 
+#define CONFIG_C_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -33,6 +35,7 @@
 #include <unistd.h>
 #include <net/if.h>
 
+
 #include "config.h"
 #include "utils.h"
 #include "aq_serial.h"
@@ -41,41 +44,44 @@
 
 char *generate_mqtt_id(char *buf, int len);
 
+struct apconfig _apconfig_;
+
 /*
 * initialize data to default values
 */
-void init_parameters (struct aqconfig * parms)
+void init_parameters (bool deamonize)
 {
   //char *p;
-  parms->serial_port = DEFAULT_SERIALPORT;
-  parms->log_level = DEFAULT_LOG_LEVEL;
-  parms->socket_port = DEFAULT_WEBPORT;
-  parms->web_directory = DEFAULT_WEBROOT;
+  _apconfig_.serial_port = DEFAULT_SERIALPORT;
+  _apconfig_.log_level = DEFAULT_LOG_LEVEL;
+  _apconfig_.socket_port = DEFAULT_WEBPORT;
+  _apconfig_.web_directory = DEFAULT_WEBROOT;
   //parms->device_id = strtoul(DEFAULT_DEVICE_ID, &p, 16);
-  parms->device_id = strtoul(DEFAULT_DEVICE_ID, NULL, 16);
+  //parms->device_id = strtoul(DEFAULT_DEVICE_ID, NULL, 16);
   //sscanf(DEFAULT_DEVICE_ID, "0x%x", &parms->device_id);
-  parms->override_freeze_protect = FALSE;
+  //parms->override_freeze_protect = FALSE;
 
-  parms->mqtt_dz_sub_topic = DEFAULT_MQTT_DZ_OUT;
-  parms->mqtt_dz_pub_topic = DEFAULT_MQTT_DZ_IN;
-  parms->mqtt_aq_topic = DEFAULT_MQTT_AQ_TP;
-  parms->mqtt_server = DEFAULT_MQTT_SERVER;
-  parms->mqtt_user = DEFAULT_MQTT_USER;
-  parms->mqtt_passwd = DEFAULT_MQTT_PASSWD;
+  //parms->mqtt_dz_sub_topic = DEFAULT_MQTT_DZ_OUT;
+  //parms->mqtt_dz_pub_topic = DEFAULT_MQTT_DZ_IN;
+  _apconfig_.mqtt_aq_topic = DEFAULT_MQTT_AQ_TP;
+  _apconfig_.mqtt_server = DEFAULT_MQTT_SERVER;
+  _apconfig_.mqtt_user = DEFAULT_MQTT_USER;
+  _apconfig_.mqtt_passwd = DEFAULT_MQTT_PASSWD;
 
-  parms->dzidx_air_temp = TEMP_UNKNOWN;
-  parms->dzidx_pool_water_temp = TEMP_UNKNOWN;
-  parms->dzidx_spa_water_temp = TEMP_UNKNOWN;
+  //parms->dzidx_air_temp = TEMP_UNKNOWN;
+  //parms->dzidx_pool_water_temp = TEMP_UNKNOWN;
+  //parms->dzidx_spa_water_temp = TEMP_UNKNOWN;
   //parms->dzidx_pool_thermostat = TEMP_UNKNOWN; // removed until domoticz has a better virtual thermostat
   //parms->dzidx_spa_thermostat = TEMP_UNKNOWN; // removed until domoticz has a better virtual thermostat
-  parms->light_programming_mode = 0;
-  parms->deamonize = true;
-  parms->log_file = '\0';
-  parms->pda_mode = false;
-  parms->convert_mqtt_temp = true;
-  parms->convert_dz_temp = true;
+  //parms->light_programming_mode = 0;
+  _apconfig_.deamonize = deamonize;
+  _apconfig_.log_file = '\0';
+  //parms->pda_mode = false;
+  _apconfig_.convert_mqtt_temp = true;
+  //parms->convert_dz_temp = true;
+  _apconfig_.temp_units = FAHRENHEIT;
 
-  generate_mqtt_id(parms->mqtt_ID, MQTT_ID_LEN);
+  generate_mqtt_id(_apconfig_.mqtt_ID, MQTT_ID_LEN);
 }
 
 
@@ -180,8 +186,8 @@ char *generate_mqtt_id(char *buf, int len) {
 }
 
 
-//void readCfg (char *cfgFile)
-void readCfg (struct aqconfig *config_parameters, struct aqualinkdata *aqdata, char *cfgFile)
+void readCfg (char *cfgFile)
+//void readCfg (struct aqconfig *config_parameters, struct aqualinkdata *aqdata, char *cfgFile)
 {
   FILE * fp ;
   char bufr[MAXCFGLINE];
@@ -205,59 +211,36 @@ void readCfg (struct aqconfig *config_parameters, struct aqualinkdata *aqdata, c
           if ( indx != NULL) 
           {
             if (strncasecmp (b_ptr, "socket_port", 11) == 0) {
-              //config_parameters->socket_port = cleanint(indx+1);
-              config_parameters->socket_port = cleanalloc(indx+1);
+              // _apconfig_.socket_port = cleanint(indx+1);
+               _apconfig_.socket_port = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "serial_port", 11) == 0) {
-              config_parameters->serial_port = cleanalloc(indx+1);
+               _apconfig_.serial_port = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "log_level", 9) == 0) {
-              config_parameters->log_level = text2elevel(cleanalloc(indx+1));
+               _apconfig_.log_level = text2elevel(cleanalloc(indx+1));
               // should fee mem here
             } else if (strncasecmp (b_ptr, "device_id", 9) == 0) {
-              config_parameters->device_id = strtoul(cleanalloc(indx+1), NULL, 16);
+               _apconfig_.device_id = strtoul(cleanalloc(indx+1), NULL, 16);
               // should fee mem here
             } else if (strncasecmp (b_ptr, "web_directory", 13) == 0) {
-              config_parameters->web_directory = cleanalloc(indx+1);
+               _apconfig_.web_directory = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "log_file", 8) == 0) {
-              config_parameters->log_file = cleanalloc(indx+1);
+               _apconfig_.log_file = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "mqtt_address", 12) == 0) {
-              config_parameters->mqtt_server = cleanalloc(indx+1);
-            } else if (strncasecmp (b_ptr, "mqtt_dz_sub_topic", 17) == 0) {
-              config_parameters->mqtt_dz_sub_topic = cleanalloc(indx+1);
-            } else if (strncasecmp (b_ptr, "mqtt_dz_pub_topic", 17) == 0) {
-              config_parameters->mqtt_dz_pub_topic = cleanalloc(indx+1);
+               _apconfig_.mqtt_server = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "mqtt_aq_topic", 13) == 0) {
-              config_parameters->mqtt_aq_topic = cleanalloc(indx+1);
+               _apconfig_.mqtt_aq_topic = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "mqtt_user", 9) == 0) {
-              config_parameters->mqtt_user = cleanalloc(indx+1);
+               _apconfig_.mqtt_user = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "mqtt_passwd", 11) == 0) {
-              config_parameters->mqtt_passwd = cleanalloc(indx+1);
-            } else if (strncasecmp (b_ptr, "air_temp_dzidx", 14) == 0) {
-              config_parameters->dzidx_air_temp = strtoul(indx+1, NULL, 10);
-            } else if (strncasecmp (b_ptr, "pool_water_temp_dzidx", 21) == 0) {
-              config_parameters->dzidx_pool_water_temp = strtoul(indx+1, NULL, 10);
-            } else if (strncasecmp (b_ptr, "spa_water_temp_dzidx", 20) == 0) {
-              config_parameters->dzidx_spa_water_temp = strtoul(indx+1, NULL, 10);
-            } else if (strncasecmp (b_ptr, "light_programming_mode", 21) == 0) {
-              config_parameters->light_programming_mode = atof(cleanalloc(indx+1)); // should free this
-            } else if (strncasecmp (b_ptr, "SWG_percent_dzidx", 17) == 0) {
-              config_parameters->dzidx_swg_percent = strtoul(indx+1, NULL, 10);
-            } else if (strncasecmp (b_ptr, "SWG_PPM_dzidx", 13) == 0) {
-              config_parameters->dzidx_swg_ppm = strtoul(indx+1, NULL, 10);
-            } else if (strncasecmp (b_ptr, "SWG_Status_dzidx", 14) == 0) {
-              config_parameters->dzidx_swg_status = strtoul(indx+1, NULL, 10);
-            } else if (strncasecmp (b_ptr, "override_freeze_protect", 23) == 0) {
-              config_parameters->override_freeze_protect = text2bool(indx+1);
-            } else if (strncasecmp (b_ptr, "pda_mode", 8) == 0) {
-              config_parameters->pda_mode = text2bool(indx+1);
+               _apconfig_.mqtt_passwd = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "convert_mqtt_temp_to_c", 22) == 0) {
-              config_parameters->convert_mqtt_temp = text2bool(indx+1);
-            } else if (strncasecmp (b_ptr, "convert_dz_temp_to_c", 21) == 0) {
-              config_parameters->convert_dz_temp = text2bool(indx+1);
+               _apconfig_.convert_mqtt_temp = text2bool(indx+1);
             }/*else if (strncasecmp (b_ptr, "pool_thermostat_dzidx", 21) == 0) {      // removed until domoticz has a better virtual thermostat
-              config_parameters->dzidx_pool_thermostat = strtoul(indx+1, NULL, 10);
+               _apconfig_.dzidx_pool_thermostat = strtoul(indx+1, NULL, 10);
             } else if (strncasecmp (b_ptr, "spa_thermostat_dzidx", 20) == 0) {
-              config_parameters->dzidx_spa_thermostat = strtoul(indx+1, NULL, 10);
-            } */else if (strncasecmp (b_ptr, "button_", 7) == 0) {
+               _apconfig_.dzidx_spa_thermostat = strtoul(indx+1, NULL, 10);
+            } */
+            /*else if (strncasecmp (b_ptr, "button_", 7) == 0) {
               int num = strtoul(b_ptr+7, NULL, 10) - 1;
               //logMessage (LOG_DEBUG, "Button %d\n", strtoul(b_ptr+7, NULL, 10));
               if (strncasecmp (b_ptr+9, "_label", 6) == 0) {
@@ -268,11 +251,14 @@ void readCfg (struct aqconfig *config_parameters, struct aqualinkdata *aqdata, c
                 aqdata->aqbuttons[num].dz_idx = strtoul(indx+1, NULL, 10);
               }
             }
+            */
           } 
           //line++;
         }
       }
     }
+
+
     fclose(fp);
   } else {
     /* error processing, couldn't open file */

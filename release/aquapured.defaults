@@ -1,0 +1,5 @@
+# Defaults / Configuration options for aquapured
+#
+# -c config file
+
+OPTS = -c /etc/aquapured.conf

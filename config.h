@@ -8,7 +8,7 @@
 
 
 #define DEFAULT_LOG_LEVEL    10 
-#define DEFAULT_WEBPORT      "6580"
+#define DEFAULT_WEBPORT      "80"
 #define DEFAULT_WEBROOT      "./"
 #define DEFAULT_SERIALPORT   "/dev/ttyUSB0"
 #define DEFAULT_DEVICE_ID    "0x0a"
@@ -21,8 +21,15 @@
 
 #define MQTT_ID_LEN 20
 
-struct aqconfig
+
+#ifndef CONFIG_C_
+const extern struct apconfig _apconfig_;
+#endif
+
+struct apconfig
 {
+  char *version;
+  char *name;
   char *serial_port;
   unsigned int log_level;
   char *socket_port;
@@ -30,34 +37,34 @@ struct aqconfig
   unsigned char device_id;
   bool deamonize;
   char *log_file;
-  char *mqtt_dz_sub_topic;
-  char *mqtt_dz_pub_topic;
+  //char *mqtt_dz_sub_topic;
+  //char *mqtt_dz_pub_topic;
   char *mqtt_aq_topic;
   char *mqtt_server;
   char *mqtt_user;
   char *mqtt_passwd;
-  char mqtt_ID[MQTT_ID_LEN];
-  int dzidx_air_temp;
-  int dzidx_pool_water_temp;
-  int dzidx_spa_water_temp;
-  int dzidx_swg_percent;
-  int dzidx_swg_ppm;
-  int dzidx_swg_status;
-  float light_programming_mode;
-  bool override_freeze_protect;
-  bool pda_mode;
+  char mqtt_ID[MQTT_ID_LEN+1];
+  //int dzidx_air_temp;
+  //int dzidx_pool_water_temp;
+  //int dzidx_spa_water_temp;
+  //int dzidx_swg_percent;
+  //int dzidx_swg_ppm;
+  //int dzidx_swg_status;
+  //float light_programming_mode;
+  //bool override_freeze_protect;
+  //bool pda_mode;
   bool convert_mqtt_temp;
-  bool convert_dz_temp;
+  int temp_units;
+  //bool convert_dz_temp;
   //int dzidx_pool_thermostat; // Domoticz virtual thermostats are crap removed until better
   //int dzidx_spa_thermostat;  // Domoticz virtual thermostats are crap removed until better
   //char mqtt_pub_topic[250];
   //char *mqtt_pub_tp_ptr = mqtt_pub_topic[];
 };
 
-
-void init_parameters (struct aqconfig * parms);
+void init_parameters (bool deamonize);
 //bool parse_config (struct aqconfig * parms, char *cfgfile);
 //void readCfg (struct aqconfig *config_parameters, char *cfgFile);
-void readCfg (struct aqconfig *config_parameters, struct aqualinkdata *aqualink_data, char *cfgFile);
+void readCfg (char *cfgFile);
 
 #endif

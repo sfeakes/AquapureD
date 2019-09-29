@@ -1,6 +1,7 @@
 #ifndef JSON_MESSAGES_H_
 #define JSON_MESSAGES_H_
 
+#include "ap_config.h"
 //FUNCTION PROTOTYPES
 
 #define JSON_LABEL_SIZE 300
@@ -33,15 +34,30 @@ struct JSONwebrequest {
   struct JSONkeyvalue third;
 };
 
+typedef struct jsontoken {
+  const char *json;
+  int json_len;
+  char *key_ptr;
+  char *val_ptr;
+  int key_len; 
+  int val_len;
+  int pos;
+} jsontoken;
+
+/*
 int build_aqualink_status_JSON(struct aqualinkdata *aqdata, char* buffer, int size);
 int build_aux_labels_JSON(struct aqualinkdata *aqdata, char* buffer, int size);
 bool parseJSONwebrequest(char *buffer, struct JSONwebrequest *request);
-int build_mqtt_status_JSON(char* buffer, int size, int idx, int nvalue, float setpoint/*char *svalue*/);
+int build_mqtt_status_JSON(char* buffer, int size, int idx, int nvalue, float setpoint);
 bool parseJSONmqttrequest(const char *str, size_t len, int *idx, int *nvalue, char *svalue);
 int build_aqualink_error_status_JSON(char* buffer, int size, char *msg);
 int build_mqtt_status_message_JSON(char* buffer, int size, int idx, int nvalue, char *svalue);
 int build_homebridge_JSON(struct aqualinkdata *aqdata, char* buffer, int size);
-
+*/
+bool parseJSONwebrequest(char *buffer, struct JSONwebrequest *request);
+char *jsontok(jsontoken *jt);
+int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homekit);
+//int build_aquapure_status_JSON(struct apdata *aqdata, char* buffer, int size);
 
 #endif /* JSON_MESSAGES_H_ */
 

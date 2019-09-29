@@ -1,17 +1,19 @@
-# AquariteD  
-linux daemon to control Aquarite SWG without the need for a pool control panel.
+# aquapureD  
+linux daemon to control Aquapure SWG without the need for a pool control panel.
 
 ## Note
 This is an old fork of AqualinkD, simply to test at the moment, not ment to be consumable.
 
+To be considered ALPHA release at present.
+
 run
 ```
- sudo ./release/aquarited -d -c ./release/aquarited.conf
+ sudo ./release/aquapured -d -c ./release/aquapured.conf
  ```
 
  You should see bunch of messages then
  ```
- Debug:  Sent        Probe  | HEX: 0x00|0x10|0x02|0x50|0x00|0x62|0x00|0xc4|0x10|0x03|0x00|
+ Debug:  Sent        Probe  | HEX: 0x10|0x02|0x50|0x00|0x62|0x10|0x03|
  ```
 
  If you see an ACK after the probe, then we are in buisness.  If not, and the RS485 port is setup correctly, then not much can be done.

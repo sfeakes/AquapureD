@@ -34,7 +34,7 @@
 #define CMD_MSG         0x03
 #define CMD_MSG_LONG    0x04
 
-/* AquaRite commands */
+/* aquapure commands */
 #define CMD_GETID       0x14  // May be remote control control
 #define CMD_PERCENT     0x11  // Set Percent
 #define CMD_PPM         0x16  // Received PPM
@@ -107,6 +107,26 @@
 #define MSG_SWG_PPM   "SALT"  // Salt 3000 PPM
 #define MSG_SWG_PCT_LEN  8
 #define MSG_SWG_PPM_LEN  4
+
+
+/* AQUAPURE SWG */
+
+// These are madeup.
+#define SWG_STATUS_OFF     0xFF
+#define SWG_STATUS_OFFLINE 0xFE
+// These are actual from RS485
+
+#define SWG_STATUS_ON           0x00
+#define SWG_STATUS_NO_FLOW      0x01 // no flow 0x01
+#define SWG_STATUS_LOW_SALT     0x02 // low salt 0x02
+//#define SWG_STATUS_VLOW_SALT    0x04 // very low salt 0x04
+#define SWG_STATUS_HI_SALT      0x04 // high salt 0x04
+#define SWG_STATUS_CLEAN_CELL   0x08 // clean cell 0x10
+#define SWG_STATUS_TURNING_OFF  0x09 // turning off 0x09
+#define SWG_STATUS_HIGH_CURRENT 0x10 // high current 0x08
+#define SWG_STATUS_LOW_VOLTS    0x20 // low voltage 0x20
+#define SWG_STATUS_LOW_TEMP     0x40 // low watertemp 0x40
+#define SWG_STATUS_CHECK_PCB    0x80 // check PCB 0x80
 
 
 /* AQUAPURE SWG */

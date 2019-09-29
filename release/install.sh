@@ -6,19 +6,19 @@
 
 BUILD="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-SERVICE="aqualinkd"
+SERVICE="aquapured"
 
-BIN="aqualinkd"
-CFG="aqualinkd.conf"
-SRV="aqualinkd.service"
-DEF="aqualinkd"
-MDNS="aqualinkd.service"
+BIN="aquapured"
+CFG="aquapured.conf"
+SRV="aquapured.service"
+DEF="aquapured"
+ARC="aquapured_cache.sh"
 
 BINLocation="/usr/local/bin"
 CFGLocation="/etc"
 SRVLocation="/etc/systemd/system"
 DEFLocation="/etc/default"
-WEBLocation="/var/www/aqualinkd/"
+WEBLocation="/var/www/aquapured/"
 MDNSLocation="/etc/avahi/services/"
 
 if [[ $EUID -ne 0 ]]; then
@@ -38,10 +38,15 @@ command -v systemctl >/dev/null 2>&1 || { echo "This script needs systemd's syst
 systemctl stop $SERVICE > /dev/null 2>&1
 SERVICE_EXISTS=$(echo $?)
 
+# mount / rw since stopping deamon will set root_ro
+if [[ $(mount | grep " / " | grep "(ro,") ]]; then
+  mount / -o remount,rw
+fi
 # copy files to locations, but only copy cfg if it doesn;t already exist
 
 cp $BUILD/$BIN $BINLocation/$BIN
 cp $BUILD/$SRV $SRVLocation/$SRV
+cp $BUILD/$ARC $BINLocation/$ARC
 
 if [ -f $CFGLocation/$CFG ]; then
   echo "Config exists, did not copy new config, you may need to edit existing! $CFGLocation/$CFG"
@@ -54,6 +59,8 @@ if [ -f $DEFLocation/$DEF ]; then
 else
   cp $BUILD/$DEF.defaults $DEFLocation/$DEF
 fi
+
+
 
 if [ -f $MDNSLocation/$MDNS ]; then
   echo "Avahi/mDNS defaults exists, did not copy new defaults to $MDNSLocation/$MDNS"
@@ -68,7 +75,7 @@ fi
 if [ ! -d "$WEBLocation" ]; then
   mkdir -p $WEBLocation
 fi
-
+#
 cp -r $BUILD/../web/* $WEBLocation
 
 systemctl enable $SERVICE

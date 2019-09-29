@@ -2,12 +2,14 @@
 # define the C compiler to use
 CC = gcc
 
-LIBS := -lpthread -lm
+#LIBS := -lpthread -lm
 #LIBS := -lpthread -lwebsockets
+LIBS := -lm
 
 # debug of not
-#$DBG = -g
-$DBG =
+#DBG = -g -D TESTING
+#DBG = -D TESTING
+DBG =
 
 # define any compile-time flags
 #CFLAGS = -Wall -g -lpthread -lwiringPi -lm -I. 
@@ -19,27 +21,29 @@ CFLAGS = -Wall $(DBG) $(LIBS) -D MG_DISABLE_MD5 -D MG_DISABLE_HTTP_DIGEST_AUTH -
 #CFLAGS = -Wall $(DBG) $(LIBS) -D MG_DISABLE_MQTT -D MG_DISABLE_MD5 -D MG_DISABLE_HTTP_DIGEST_AUTH -D MG_DISABLE_MD5 -D MG_DISABLE_JSON_RPC
 
 #INCLUDES = -I/nas/data/Development/Raspberry/aqualink/aqualinkd
-INCLUDES = -I./ -I../
+#INCLUDES = -I./ -I../ -I./aquapure/
+INCLUDES = -I./
 
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # define the C source files
-SRCS = aqualinkd.c utils.c config.c aq_serial.c init_buttons.c aq_programmer.c net_services.c json_messages.c mongoose.c
+#SRCS = aqualinkd.c utils.c config.c aq_serial.c init_buttons.c aq_programmer.c net_services.c json_messages.c mongoose.c
 
 #SL_SRC = serial_logger.c aq_serial.c utils.c
-#AL_SRC = aquarite_logger.c aq_serial.c utils.c
-AR_SRC = aquarite/aquarited.c aquarite/ar_net_services.c aquarite/ar_config.c aq_serial.c utils.c mongoose.c json_messages.c config.c
+#AL_SRC = aquapure_logger.c aq_serial.c utils.c
+SRCS = aquapure.c ap_net_services.c ap_config.c aq_serial.c utils.c mongoose.c json_messages.c config.c
+#SRCS = aq_serial.c utils.c mongoose.c json_messages.c config.c aquapured/ap_net_services.c aquapured/ap_config.c aquapured/aquapure.c
 
-#OBJS = $(SRCS:.c=.o)
-SL_OBJS = $(SL_SRC:.c=.o)
-AL_OBJS = $(AL_SRC:.c=.o)
-AR_OBJS = $(AR_SRC:.c=.o)
+OBJS = $(SRCS:.c=.o)
+#SL_OBJS = $(SL_SRC:.c=.o)
+#AL_OBJS = $(AL_SRC:.c=.o)
+#AP_OBJS = $(AP_SRC:.c=.o)
 
 # define the executable file
-MAIN = ./release/aquarited
-SLOG = ./release/serial_logger
-AQUARITELOG = ./release/aquarite_logger
-AQUARITED = ./release/aquarited
+MAIN = ./release/aquapured
+#SLOG = ./release/serial_logger
+#AQUAPURELOG = ./release/aquapure_logger
+#AQUAPURED = ./release/aquapured
 
 all:    $(MAIN) 
   @echo: $(MAIN) have been compiled
@@ -47,24 +51,6 @@ all:    $(MAIN)
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
 
-
-slog:	$(SLOG)
-  @echo: $(SLOG) have been compiled
-
-$(SLOG): $(SL_OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $(SLOG) $(SL_OBJS)
-
-aquaritelog:	$(AQUARITELOG)
-  @echo: $(AQUARITELOG) have been compiled
-
-$(AQUARITELOG): $(AL_OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $(AQUARITELOG) $(AL_OBJS)
-
-aquarited:	$(AQUARITED)
-  @echo: $(AQUARITED) have been compiled
-
-$(AQUARITED): $(AR_OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $(AQUARITED) $(AR_OBJS)
 
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of

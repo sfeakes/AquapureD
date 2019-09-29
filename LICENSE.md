@@ -13,13 +13,13 @@ Once your end device or application is commercial you need to either open the so
 
 If you are unsure which type of license is right for you, contact us to discuss.
 
-## aqualinkd Commercial License
+## AquapureD Commercial License
 The right to develop and modify the software to embed in your own products
-Ability to redistribute your products with aqualinkd included
+Ability to redistribute your products with AquapureD included
 Option to access Software Maintenance & Support for updates, upgrades and technical support
 Our license model is simple and includes full access to source code and accompanying documentation. If your needs require a custom license, we’d be happy to work on a solution with you.
 
 ## Non Compliance and License Incompatibilities
-Integrating aqualinkd software in a commercial product without fully releasing your source code or purchasing a commercial license can have legal ramifications. You agree to the terms under GPLv2 as you integrate our source code.
+Integrating AquapureD software in a commercial product without fully releasing your source code or purchasing a commercial license can have legal ramifications. You agree to the terms under GPLv2 as you integrate our source code.
 
 Incompatibilities, through taking different components of different sources and ignoring any license restrictions, can result in the software pieces you choose not to be permitted to be used in a single product.

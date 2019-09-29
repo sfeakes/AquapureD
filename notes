@@ -1,4 +1,45 @@
 
+
+http://aqualinkd.ip.address:port?command=swg_percent&value=95
+http://aqualinkd.ip.address:port?command=swg&value=on
+http://aqualinkd.ip.address:port?command=swg&value=off
+
+
+
+{
+   "type":"devices",
+   "date":"09/26/19 THU",
+   "time":"6:07 PM",
+   "temp_units":"f",
+   "devices":[
+      {
+         "type":"setpoint_swg",
+         "id":"SWG",
+         "name":"Salt Water Generator",
+         "state":"off",
+         "status":"off",
+         "spvalue":"-17.78",
+         "value":"-17.78",
+         "int_status":"0"
+      },
+      {
+         "type":"value",
+         "id":"SWG/Percent_f",
+         "name":"Salt Water Generator Percent",
+         "state":"on",
+         "value":"-17.78"
+      },
+      {
+         "type":"value",
+         "id":"SWG/PPM_f",
+         "name":"Salt Level PPM",
+         "state":"on",
+         "value":"1482.22"
+      }
+   ]
+}
+
+
 http://cocoontech.com/forums/topic/13548-intelliflow-pump-rs485-protocol/page-10
 
 ping (hex)          10 02 50 00 62 10 03 
@@ -26,7 +67,7 @@ Here is what I sent and got back:
 16,2,80,20,1 =>0,3,0,65
 The only response that ever changes is the 70 (ppm).  All else are always the same.
 
-Also, I notice the AquaRite does not mind getting extra data.  For example, 
+Also, I notice the aquapure does not mind getting extra data.  For example, 
 
 16,2,80,0,98,16,3 = 16,2,80,0,0,98,16,3 = 16,2,80,0,0,0,98,16,3
 

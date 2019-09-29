@@ -1,5 +1,0 @@
-# Defaults / Configuration options for aqualinkd
-#
-# -c config file
-
-OPTS = -c /etc/aqualinkd.conf

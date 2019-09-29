@@ -411,12 +411,23 @@ int get_packet(int fd, unsigned char* packet)
   int retry=0;
 
   while (!endOfPacket) {
-    //printf("Read loop %d\n",++i);
+    //printf("Read loop %d\n",i);
+    //if (i++ > 10)
+    //  return 0;
+
     bytesRead = read(fd, &byte, 1);
+
+    //printf("Read loop size %d rtn %d\n",bytesRead, errno);
 
     if (bytesRead < 0 && errno == EAGAIN && started == FALSE) {
       // We just have nothing to read
       return 0;
+  #ifdef TESTING
+    } else if (bytesRead == 0 && started == FALSE) {
+      // Probably set port to /dev/null for testing.
+      //printf("Read loop return\n");
+      return 0;
+  #endif
     } else if (bytesRead < 0 && errno == EAGAIN) {
       // If we are in the middle of reading a packet, keep going
       if (retry > 10)

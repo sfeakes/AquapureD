@@ -1,0 +1,22 @@
+[Unit]
+Description=Aquapure Daemon
+ConditionPathExists=/etc/aquapured.conf
+After=network.target multi-user.target
+Requires=network.target
+
+[Service]
+Type=forking
+#RemainAfterExit=no
+#StartLimitInterval=0
+PIDFile=/run/aquapured.pid 
+EnvironmentFile=/etc/default/aquapured
+#ExecStartPre=/usr/local/bin/aquapured_cache.sh
+ExecStart=/usr/local/bin/aquapured $OPTS
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStartPost=/usr/local/bin/aquapured_cache.sh
+#Restart=on-failure
+KillMode=process
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

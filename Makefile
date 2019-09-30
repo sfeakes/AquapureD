@@ -7,7 +7,8 @@ CC = gcc
 LIBS := -lm
 
 # debug of not
-#DBG = -g -D TESTING
+#DBG = -g -O0 -fsanitize=address -static-libasan
+#DBG = -g
 #DBG = -D TESTING
 DBG =
 
@@ -35,12 +36,14 @@ SRCS = aquapure.c ap_net_services.c ap_config.c aq_serial.c utils.c mongoose.c j
 #SRCS = aq_serial.c utils.c mongoose.c json_messages.c config.c aquapured/ap_net_services.c aquapured/ap_config.c aquapured/aquapure.c
 
 OBJS = $(SRCS:.c=.o)
+
 #SL_OBJS = $(SL_SRC:.c=.o)
 #AL_OBJS = $(AL_SRC:.c=.o)
 #AP_OBJS = $(AP_SRC:.c=.o)
 
 # define the executable file
 MAIN = ./release/aquapured
+
 #SLOG = ./release/serial_logger
 #AQUAPURELOG = ./release/aquapure_logger
 #AQUAPURED = ./release/aquapured

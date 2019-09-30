@@ -263,7 +263,7 @@ void logMessage(int msg_level, char *format, ...)
   va_list args;
   va_start(args, format);
   strncpy(buffer, "         ", 8);
-  vsprintf (&buffer[8], format, args);
+  vsnprintf (&buffer[8], 500, format, args);
   va_end(args);
   
   //test(msg_level, buffer);

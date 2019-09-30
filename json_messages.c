@@ -147,8 +147,9 @@ int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homeki
   length += sprintf(buffer+length,  ", \"devices\": [");
   
   //if ( aqdata->Percent != TEMP_UNKNOWN ) {
-    length += sprintf(buffer+length, "{\"type\": \"setpoint_swg\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\", \"spvalue\": \"%.*f\", \"value\": \"%.*f\", \"extended_status\": \"%d\" },",
-                                     SWG_TOPIC,
+    length += sprintf(buffer+length, "{\"type\": \"setpoint_swg\", \"id\": \"%s\", \"setpoint_id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\", \"spvalue\": \"%.*f\", \"value\": \"%.*f\", \"extended_status\": \"%d\" },",
+                                    SWG_TOPIC,
+                                    ((homekit_f)?SWG_PERCENT_F_TOPIC:SWG_PERCENT_TOPIC),
                                     "Salt Water Generator",
                                     aqdata->status == SWG_STATUS_ON?JSON_ON:JSON_OFF,
                                     aqdata->status == SWG_STATUS_ON?JSON_ON:JSON_OFF,
@@ -190,9 +191,12 @@ int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homeki
 
   length += sprintf(buffer+length, "]}");
 
-  logMessage(LOG_DEBUG, "WEB: homebridge used %d of %d", length, size);
+  logMessage(LOG_DEBUG, "build_device_JSON %d of %d", length, size);
+ 
 
   buffer[length] = '\0';
+
+  logMessage(LOG_DEBUG, "-->%s<--", buffer);
 
   return strlen(buffer);
 

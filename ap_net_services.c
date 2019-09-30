@@ -70,6 +70,8 @@ static void ws_send(struct mg_connection *nc, char *msg)
 {
   int size = strlen(msg);
   
+  logMessage (LOG_DEBUG, "WS: Sent %d characters '%s'\n",size, msg);
+
   mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, msg, size);
   
   logMessage (LOG_DEBUG, "WS: Sent %d characters '%s'\n",size, msg);
@@ -112,7 +114,7 @@ void send_mqtt_float_msg(struct mg_connection *nc, char *dev_name, float value) 
   static char mqtt_pub_topic[250];
   static char msg[10];
 
-  sprintf(msg, "%f", value);
+  sprintf(msg, "%0.2f", value);
   sprintf(mqtt_pub_topic, "%s/%s",  _apconfig_.mqtt_aq_topic, dev_name);
   send_mqtt(nc, mqtt_pub_topic, msg);
 }
@@ -361,6 +363,7 @@ void action_websocket_request(struct mg_connection *nc, struct websocket_message
       //char message[JSON_LABEL_SIZE*10];
       //build_device_JSON(_aqualink_data, _aqualink_config->light_programming_button_pool, _aqualink_config->light_programming_button_spa, message, JSON_LABEL_SIZE*10, false);
       int size = build_device_JSON(_ar_prms, data, JSON_STATUS_SIZE, false);
+      logMessage(LOG_DEBUG, "-->%s<--", data);
       ws_send(nc, data);
   } else if (strcmp(request.first.key, "command") == 0) {
     if (strcmp(request.first.value, SWG_TOPIC) == 0) {
@@ -368,14 +371,12 @@ void action_websocket_request(struct mg_connection *nc, struct websocket_message
       _ar_prms->changed = true;
     }
   } else if (strcmp(request.first.key, "parameter") == 0) {
-    if (strcmp(request.first.value, SWG_TOPIC) == 0) {
-      //int value = atoi(request.second.value);
+    if (strcmp(request.first.value, SWG_TOPIC) == 0) { // Should delete this soon
       set_swg_percent(request.second.value, false);
-      //_ar_prms->Percent = atoi(request.second.value);
-      //printf("SET PERCENT TO %d\n", _ar_prms->Percent);
-      //broadcast_aquapurestate(nc);
-      //write_cache(_ar_prms);
-      //_ar_prms->changed = true;
+    } else if (strcmp(request.first.value, SWG_PERCENT_TOPIC) == 0) {
+      set_swg_percent(request.second.value, false);
+    } else if (strcmp(request.first.value, SWG_PERCENT_F_TOPIC) == 0) {
+      set_swg_percent(request.second.value, true);
     }
   }
 }

@@ -31,7 +31,7 @@
 
 static struct termios _oldtio;
 
-
+void send_packet(int fd, unsigned char *packet, int length);
 
 
 void log_packet(char *init_str, unsigned char* packet, int length)
@@ -208,6 +208,7 @@ void print_hex(char *pk, int length)
   printf("\n");
 }
 
+/*
 void test_cmd()
 {
   const int length = 11;
@@ -223,7 +224,8 @@ void test_cmd()
   ackPacket[7] = generate_checksum(ackPacket, length-1);
   print_hex((char *)ackPacket, length);
 }
-
+*/
+/*
 void send_test_cmd(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3)
 {
   const int length = 11;
@@ -252,42 +254,62 @@ void send_test_cmd(int fd, unsigned char destination, unsigned char b1, unsigned
 #endif  
 
   log_packet("Sent ", ackPacket, length);
-
 }
-void send_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3)
+*/
+void send_1byte_command(int fd, unsigned char destination, unsigned char b1)
 {
-  const int length = 11;
-  unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, CMD_ACK, NUL, NUL, 0x13, DLE, ETX, NUL };
-  //unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, NUL, NUL, NUL, 0x13, DLE, ETX, NUL };
+  int length = 9;
+  unsigned char packet[] = { NUL, DLE, STX, DEV_MASTER, CMD_ACK, 0x13, DLE, ETX, NUL };
+  packet[3] = destination;
+  packet[4] = b1;
+  packet[5] = generate_checksum(packet, length-1);
 
-  // Update the packet and checksum if command argument is not NUL.
-  ackPacket[3] = destination;
-  ackPacket[4] = b1;
-  ackPacket[5] = b2;
-  ackPacket[6] = b3;
-  ackPacket[7] = generate_checksum(ackPacket, length-1);
+  send_packet(fd, packet, length);
+}
 
-#ifdef BLOCKING_MODE
-  write(fd, ackPacket, length);
-#else
+void send_2byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2)
+{
+  int length = 10;
+  unsigned char packet[] = { NUL, DLE, STX, DEV_MASTER, CMD_ACK, NUL, 0x13, DLE, ETX, NUL };
+  packet[3] = destination;
+  packet[4] = b1;
+  packet[5] = b2;
+  packet[6] = generate_checksum(packet, length-1);
+
+  send_packet(fd, packet, length);
+}
+
+void send_3byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3)
+{
+  int length = 11;
+  unsigned char packet[] = { NUL, DLE, STX, DEV_MASTER, CMD_ACK, NUL, NUL, 0x13, DLE, ETX, NUL };
+  packet[3] = destination;
+  packet[4] = b1;
+  packet[5] = b2;
+  packet[6] = b3;
+  packet[7] = generate_checksum(packet, length-1);
+
+  send_packet(fd, packet, length);
+}
+
+void send_packet(int fd, unsigned char *packet, int length)
+{
+
   int nwrite, i;
   for (i=0; i<length; i += nwrite) {        
-    nwrite = write(fd, ackPacket + i, length - i);
+    nwrite = write(fd, packet + i, length - i);
     if (nwrite < 0) 
       logMessage(LOG_ERR, "write to serial port failed\n");
   }
-  //logMessage(LOG_DEBUG_SERIAL, "Send %d bytes to serial\n",length);
-  //tcdrain(fd);
-  //logMessage(LOG_DEBUG, "Send '0x%02hhx' to '0x%02hhx'\n", command, destination);
-#endif  
 
   if ( getLogLevel() >= LOG_DEBUG_SERIAL) {
     char buf[30];
-    sprintf(buf, "Sent     %8.8s ", get_packet_type(ackPacket+1, length));
-    log_packet(buf, ackPacket, length);
+    sprintf(buf, "Sent     %8.8s ", get_packet_type(packet+1, length));
+    log_packet(buf, packet, length);
   }
 }
 
+/*
 void send_probe(int fd, unsigned char destination)
 {
   const int length = 9;
@@ -318,7 +340,7 @@ void send_probe(int fd, unsigned char destination)
     log_packet(buf, ackPacket, length);
   }
 }
-
+*/
 void send_messaged(int fd, unsigned char destination, char *message)
 {
   const int length = 24;
@@ -487,7 +509,7 @@ int get_packet(int fd, unsigned char* packet)
 
       // Break out of the loop if we exceed maximum packet
       // length.
-      if (index >= AQ_MAXPKTLEN) {
+      if (index >= AQ_MAXPKTLEN-1) {
         break;
       }
     }

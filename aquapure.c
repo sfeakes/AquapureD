@@ -30,6 +30,7 @@ struct apdata _ar_prms;
 
 bool _keepRunning = true;
 //int _percentsalt_ = 50;
+bool _forceConnection = false;
 
 void main_loop();
 
@@ -136,7 +137,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  _ar_prms.PPM = 0;
+  _ar_prms.PPM = TEMP_UNKNOWN;
   _ar_prms.Percent = 50;
   _ar_prms.generating = false;
   _ar_prms.cache_file = CACHE_FILE;
@@ -150,6 +151,8 @@ int main(int argc, char *argv[]) {
       deamonize = false;
     } else if (strcmp(argv[i], "-c") == 0) {
       cfgFile = argv[++i];
+    } else if (strcmp(argv[i], "-f") == 0) {
+      _forceConnection = true;
     }
   }
 
@@ -197,6 +200,15 @@ void main_loop() {
 
   rs_fd = init_serial_port(_apconfig_.serial_port);
 
+/*
+  send_1byte_command(rs_fd, AR_ID, CMD_PROBE);
+  send_2byte_command(rs_fd, AR_ID, CMD_GETID, 0x01);
+  send_3byte_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
+  char msg[] = {0x00, 0x01};
+  printf("Len = %d\n",strlen(msg));
+  send_messaged(rs_fd, AR_ID, msg);
+  return;
+*/
   if (rs_fd < 0) {
     logMessage(LOG_ERR, "Can not open serial port '%s'\n",_apconfig_.serial_port);
     exit(EXIT_FAILURE);
@@ -207,7 +219,7 @@ void main_loop() {
 
   mg_mgr_poll(&mgr, 500);
 
-  send_probe(rs_fd, AR_ID);
+  send_1byte_command(rs_fd, AR_ID, CMD_PROBE);
 
   logMessage(LOG_DEBUG_SERIAL,"Send Probe\n");
   
@@ -232,7 +244,7 @@ void main_loop() {
       logMessage(LOG_DEBUG_SERIAL,"Nothing read\n");
       //if (ar_connected == false && no_reply >= PING_POLL) {
         //send_command(rs_fd, AR_ID, CMD_PROBE, 0x62, NUL);
-        send_probe(rs_fd, AR_ID);
+        send_1byte_command(rs_fd, AR_ID, CMD_PROBE);
         //logMessage(LOG_DEBUG_SERIAL,"Send Probe\n");
       //  no_reply = 0;
       //} else {
@@ -268,14 +280,20 @@ void main_loop() {
 
         switch (packet_buffer[PKT_CMD]) {
         case CMD_ACK:
+          if (_forceConnection == true)
+            _ar_prms.generating = true;
+
           if (_ar_prms.generating == false) {
             // Chlorinator Translator =   GetID | HEX: 0x10|0x02|0x50|0x14|0x00|0x76|0x10|0x03|
             // AquaLinkRD To 0x50 of type GetID | HEX: 0x10|0x02|0x50|0x14|0x01|0x77|0x10|0x03|
-            send_command(rs_fd, AR_ID, CMD_GETID, 0x01, 0x77); // Returns AquaPure or aquapure
+            send_2byte_command(rs_fd, AR_ID, CMD_GETID, 0x01);
+            //send_2byte_command(rs_fd, AR_ID, CMD_GETID, 0x01);
+            //send_command(rs_fd, AR_ID, CMD_GETID, 0x01, 0x77); // Returns AquaPure or aquapure
             //send_command(rs_fd, AR_ID, CMD_GETID, 0x00, 0x76); // Returns BOOTS
             //logMessage(LOG_DEBUG_SERIAL,"Send Get Status/ID\n");
           } else {
-            send_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
+            send_3byte_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
+            //send_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
             //logMessage(LOG_DEBUG_SERIAL,"Send set percent salt to %d\n",_ar_prms.Percent);
           }
           break;
@@ -319,7 +337,8 @@ void main_loop() {
             debugStatusPrint();
 
         case CMD_MSG: // Want to fall through
-          send_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
+          //send_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
+          send_3byte_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
           break;
         // case 0x16:
         // break;

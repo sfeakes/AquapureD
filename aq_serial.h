@@ -164,8 +164,12 @@ int get_packet(int file_descriptor, unsigned char* packet);
 //void process_status(void const * const ptr);
 void process_status(unsigned char* ptr);
 const char* get_packet_type(unsigned char* packet, int length);
-void send_test_cmd(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
-void send_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
+//void send_test_cmd(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
+//void send_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
 void send_messaged(int fd, unsigned char destination, char *message);
-void send_probe(int fd, unsigned char destination);
+//void send_probe(int fd, unsigned char destination);
+
+void send_1byte_command(int fd, unsigned char destination, unsigned char b1);
+void send_2byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2);
+void send_3byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
 #endif // AQ_SERIAL_H_

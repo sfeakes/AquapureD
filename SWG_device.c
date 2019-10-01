@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ap_config.h"
+#include "SWG_device.h"
 #include "utils.h"
+
 
 void write_cache(struct apdata *ar_prms) {
   FILE *fp;

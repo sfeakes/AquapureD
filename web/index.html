@@ -287,15 +287,22 @@
 //console.log("Update " + data['devices'][obj].id);
           if ( data['devices'][obj].type == "value" ) {
             setLabel(data['devices'][obj].id, data['devices'][obj].value);
-          } else if ( data['devices'][obj].type == "setpoint_swg" ||
-                      data['devices'][obj].type == "setpoint_thermo" ||
+          } else if ( data['devices'][obj].type == "setpoint_thermo" ||
                       data['devices'][obj].type == "setpoint_freeze" ) {
             setSlider(data['devices'][obj].setpoint_id, data['devices'][obj].value);
-            setButton(data['devices'][obj].id, data['devices'][obj].state)
+            setButton(data['devices'][obj].id, data['devices'][obj].state);
+          } else if ( data['devices'][obj].type == "setpoint_swg" ) {
+            setSlider(data['devices'][obj].setpoint_id, data['devices'][obj].value);
+            setButton(data['devices'][obj].id, data['devices'][obj].state);
+             //setButton(data['devices'][obj].id, data['devices'][obj].state); // This is correct, but using status for Aquapure
+             setButton(data['devices'][obj].id, data['devices'][obj].status);
+          } else if ( data['devices'][obj].type == "switch") {
+            setButton(data['devices'][obj].id, data['devices'][obj].state);
           }
         }
       }
     }
+
     /*
     function setTitle(date, time) {
       document.getElementById("title").innerHTML = "AquapureD &nbsp;&nbsp;&nbsp;<font size='-1'>"+formatSatus(date+"&nbsp;"+time)+"</font>";
@@ -422,7 +429,8 @@
         cell4.innerHTML = "<div><input id='switch-"+object.id+"' name='"+object.id+"' class='switch switch-btn' type='checkbox' onclick='update(this);'><label for='switch-"+object.id+"'></label></div>";
         //cell4.innerHTML = "<div class='switch'><input id='btn-toggle-"+object.id+"' name='"+object.id+"' class='btn-toggle btn-toggle-round' type='checkbox' onclick='update(this);'><label for='btn-toggle-"+object.id+"'></label></div>";
         setSlider(object.setpoint_id, object.value);
-        setButton(object.id, object.state);
+        //setButton(object.id, object.state); // This is correct, but using status for Aquapure
+        setButton(object.id, object.status);
       }
     }
     
@@ -475,6 +483,9 @@
       if( (btn = document.getElementById('btn-toggle-' + id)) != null)
         btn.checked = isOn;
       */
+
+console.log("Set "+id+" "+isOn);
+
      if ( (source = document.getElementById('switch-'+id)) == null)
        return;
 

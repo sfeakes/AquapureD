@@ -10,7 +10,7 @@ LIBS := -lm
 #DBG = -g -O0 -fsanitize=address -static-libasan
 #DBG = -g
 #DBG = -D TESTING
-DBG =
+#DBG =
 
 # define any compile-time flags
 #CFLAGS = -Wall -g -lpthread -lwiringPi -lm -I. 
@@ -32,7 +32,7 @@ INCLUDES = -I./
 
 #SL_SRC = serial_logger.c aq_serial.c utils.c
 #AL_SRC = aquapure_logger.c aq_serial.c utils.c
-SRCS = aquapure.c ap_net_services.c ap_config.c aq_serial.c utils.c mongoose.c json_messages.c config.c
+SRCS = aquapure.c ap_net_services.c SWG_device.c aq_serial.c utils.c mongoose.c json_messages.c config.c
 #SRCS = aq_serial.c utils.c mongoose.c json_messages.c config.c aquapured/ap_net_services.c aquapured/ap_config.c aquapured/aquapure.c
 
 OBJS = $(SRCS:.c=.o)

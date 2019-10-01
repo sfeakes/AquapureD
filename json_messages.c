@@ -28,7 +28,7 @@
 #include "json_messages.h"
 //#include "domoticz.h"
 #include "aq_mqtt.h"
-#include "ap_config.h"
+#include "SWG_device.h"
 #include "version.h"
 
 
@@ -79,7 +79,7 @@ const char* SWGstatus2test(unsigned char status)
       return "Check PCB";
     break;
   }
-  return "";
+  return "Unknown";
 }
 
 const char* getStatus(struct aqualinkdata *aqdata)
@@ -152,7 +152,7 @@ int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homeki
                                     ((homekit_f)?SWG_PERCENT_F_TOPIC:SWG_PERCENT_TOPIC),
                                     "Salt Water Generator",
                                     aqdata->status == SWG_STATUS_ON?JSON_ON:JSON_OFF,
-                                    aqdata->status == SWG_STATUS_ON?JSON_ON:JSON_OFF,
+                                    ((aqdata->connected && (aqdata->Percent > 0) && (aqdata->status < SWG_STATUS_TURNING_OFF) )?JSON_ON:JSON_OFF),
                                     ((homekit)?2:0),
                                     ((homekit_f)?degFtoC(aqdata->Percent):aqdata->Percent),
                                     ((homekit)?2:0),
@@ -186,6 +186,13 @@ int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homeki
                                    */
   }
 
+   length += sprintf(buffer+length, "{\"type\": \"switch\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\" },",
+                                   SWG_BOOST_TOPIC,
+                                   "Salt Water Generator Boost",
+                                   aqdata->boost == true?JSON_ON:JSON_OFF,
+                                   aqdata->boost == true?JSON_ON:JSON_OFF);
+  
+
   if (buffer[length-1] == ',')
     length--;
 
@@ -195,8 +202,6 @@ int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homeki
  
 
   buffer[length] = '\0';
-
-  logMessage(LOG_DEBUG, "-->%s<--", buffer);
 
   return strlen(buffer);
 

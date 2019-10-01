@@ -10,7 +10,7 @@
 #include "mongoose.h"
 #include "aq_serial.h"
 #include "config.h"
-#include "ap_config.h"
+#include "SWG_device.h"
 
 #include "utils.h"
 #include "ap_net_services.h"
@@ -19,7 +19,12 @@
 //#define PACKET_MAX 10000
 #define CACHE_FILE "/tmp/aquapure.cache"
 
-#define TIMEOUT_TRIES 10
+// TIMEOUT_TRIES needs to be divisable by RETRY_NUL_READ.  
+// Number of RETRY_NUL_READ null reads = re send last message.   ie re-send every 5 poll cycles of nothing read.
+// Number of TIMEOUT_TRIES / RETRY_NUL_READ null reads set to connection faulure.  ie 3 re-sends, and nothing read call SWG dead. 
+#define RETRY_NUL_READ 5  
+#define TIMEOUT_TRIES 15  
+
 
 #define AR_ID 0x50
 
@@ -139,9 +144,11 @@ int main(int argc, char *argv[]) {
 
   _ar_prms.PPM = TEMP_UNKNOWN;
   _ar_prms.Percent = 50;
-  _ar_prms.generating = false;
+  _ar_prms.default_percent = 50;
+  _ar_prms.boost = false;
   _ar_prms.cache_file = CACHE_FILE;
   _ar_prms.changed = true;
+  _ar_prms.connected = false;
 
   // Initialize the daemon's parameters.
   //init_parameters();
@@ -190,6 +197,7 @@ void main_loop() {
   //bool sendUpdate = false;
   bool broadcast = true;
   int cnt=0;
+  unsigned char corrected_status;
 
   logMessage(LOG_DEBUG, "Starting aquapured!\n");
 
@@ -241,97 +249,67 @@ void main_loop() {
       _keepRunning = false;
     } else if (packet_length == 0) {
       // Nothing read
-      logMessage(LOG_DEBUG_SERIAL,"Nothing read\n");
-      //if (ar_connected == false && no_reply >= PING_POLL) {
-        //send_command(rs_fd, AR_ID, CMD_PROBE, 0x62, NUL);
-        send_1byte_command(rs_fd, AR_ID, CMD_PROBE);
-        //logMessage(LOG_DEBUG_SERIAL,"Send Probe\n");
-      //  no_reply = 0;
-      //} else {
-        no_reply++;
-        if (no_reply >= TIMEOUT_TRIES) {
-          logMessage(LOG_DEBUG_SERIAL,"*** %d BLANK READS *****\n",no_reply);
-          if (_ar_prms.ar_connected == true || _ar_prms.generating == true) {
+      no_reply++;
+      logMessage(LOG_DEBUG_SERIAL,"Nothing read try %d\n",no_reply);
+     
+      // Resend last command after X blank reads
+      if ( (no_reply % RETRY_NUL_READ) == 0 ) {
+        if ( _ar_prms.connected == true)
+          send_3byte_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
+        else
+          send_1byte_command(rs_fd, AR_ID, CMD_PROBE);     
+      }
+
+      if (no_reply >= TIMEOUT_TRIES) {
+        logMessage(LOG_ERR,"%d BLANK READS, Calling SWG connection dead\n",no_reply);
+        if (_ar_prms.connected == true || _ar_prms.status != SWG_STATUS_OFFLINE) {
             //sendUpdate = true;
-            _ar_prms.changed = true;
-          }
-          _ar_prms.ar_connected = false;
-          _ar_prms.generating = false;
-          _ar_prms.status = SWG_STATUS_OFFLINE;
-          
-          //if (sendUpdate)
-          //  broadcast = broadcast_aquapurestate(mgr.active_connections);
-          /*
-          if (_ar_prms.generating == true) {
-            _ar_prms.generating = false;
-            broadcast = broadcast_aquapurestate(mgr.active_connections);
-          }*/
-          //ar_prms.generating = false;
-          no_reply = 0;
+          _ar_prms.changed = true;
         }
-      //}
-      // sleep(1);
+        _ar_prms.connected = false;
+        _ar_prms.status = SWG_STATUS_OFFLINE;
+          
+        no_reply = 0;
+      }
     } else if (packet_length > 0) {
       no_reply = 0;
       if (packet_buffer[PKT_DEST] == 0x00) {
-        _ar_prms.ar_connected = true;
+        _ar_prms.connected = true;
         if (getLogLevel() >= LOG_DEBUG_SERIAL)
           debugPacketPrint(AR_ID, packet_buffer, packet_length);
 
         switch (packet_buffer[PKT_CMD]) {
         case CMD_ACK:
           if (_forceConnection == true)
-            _ar_prms.generating = true;
+            _ar_prms.connected = true;
 
-          if (_ar_prms.generating == false) {
-            // Chlorinator Translator =   GetID | HEX: 0x10|0x02|0x50|0x14|0x00|0x76|0x10|0x03|
-            // AquaLinkRD To 0x50 of type GetID | HEX: 0x10|0x02|0x50|0x14|0x01|0x77|0x10|0x03|
+          if (_ar_prms.connected == false) {
             send_2byte_command(rs_fd, AR_ID, CMD_GETID, 0x01);
-            //send_2byte_command(rs_fd, AR_ID, CMD_GETID, 0x01);
-            //send_command(rs_fd, AR_ID, CMD_GETID, 0x01, 0x77); // Returns AquaPure or aquapure
-            //send_command(rs_fd, AR_ID, CMD_GETID, 0x00, 0x76); // Returns BOOTS
-            //logMessage(LOG_DEBUG_SERIAL,"Send Get Status/ID\n");
           } else {
             send_3byte_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
-            //send_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
-            //logMessage(LOG_DEBUG_SERIAL,"Send set percent salt to %d\n",_ar_prms.Percent);
           }
           break;
         case CMD_PPM:
           logMessage(LOG_DEBUG_SERIAL,"Received PPM %d\n", (packet_buffer[4] * 100));
-          //sendUpdate = false;
 
-          if (_ar_prms.status != packet_buffer[5]) {
-            _ar_prms.status = packet_buffer[5];
-            //sendUpdate = true;
+          if (_ar_prms.connected != true) {
+            _ar_prms.connected = true;
+            _ar_prms.changed = true;
+          }
+          
+          // If ON status but % = 0 change status to off, since off is not supported on RS485 protocol.
+          corrected_status = (packet_buffer[5] == SWG_STATUS_ON && _ar_prms.Percent < 0)?SWG_STATUS_OFF:packet_buffer[5];
+ 
+          // Has status changed.
+          if (_ar_prms.status != corrected_status ) {
+            _ar_prms.status = corrected_status;
             _ar_prms.changed = true;
           }
 
-          if (_ar_prms.status == 0x00 || _ar_prms.status == 0x04 || _ar_prms.status == 0x20) {
-            if (_ar_prms.PPM != packet_buffer[4] * 100) {
-              _ar_prms.PPM = packet_buffer[4] * 100;
-              //broadcast_aquapurestate(mgr.active_connections);
-              //sendUpdate = true;
-              _ar_prms.changed = true;
-              write_cache(&_ar_prms);
-            }
-            if (_ar_prms.generating == false) {
-              _ar_prms.generating = true;
-              //broadcast_aquapurestate(mgr.active_connections);
-              //sendUpdate = true;
-              _ar_prms.changed = true;
-            }
-          } else {
-            if (_ar_prms.generating == true) {
-              _ar_prms.generating = false;
-              //broadcast_aquapurestate(mgr.active_connections);
-              //sendUpdate = true;
-              _ar_prms.changed = true;
-            }
+          if (_ar_prms.PPM != packet_buffer[4] * 100) {
+            _ar_prms.PPM = packet_buffer[4] * 100;
+            _ar_prms.changed = true;
           }
-
-          //if (sendUpdate)
-          //  broadcast = broadcast_aquapurestate(mgr.active_connections);
 
           if (getLogLevel() >= LOG_DEBUG_SERIAL && _ar_prms.status != 0x00)
             debugStatusPrint();
@@ -339,6 +317,7 @@ void main_loop() {
         case CMD_MSG: // Want to fall through
           //send_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
           send_3byte_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
+          _ar_prms.connected = true;
           break;
         // case 0x16:
         // break;
@@ -363,7 +342,7 @@ void main_loop() {
     
     if (cnt >= 600) {
       cnt = 0;
-      if (_ar_prms.ar_connected == true)
+      if (_ar_prms.connected == true)
         broadcast = false;  
     }
     cnt ++;

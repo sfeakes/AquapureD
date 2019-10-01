@@ -1,7 +1,7 @@
 #ifndef JSON_MESSAGES_H_
 #define JSON_MESSAGES_H_
 
-#include "ap_config.h"
+#include "SWG_device.h"
 //FUNCTION PROTOTYPES
 
 #define JSON_LABEL_SIZE 300

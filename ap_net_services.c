@@ -44,7 +44,7 @@ typedef enum {mqttstarting, mqttrunning, mqttstopped, mqttdisabled} mqttstatus;
 static mqttstatus _mqtt_status = mqttstopped;
 
 //static struct aqconfig *_config;
-static struct apdata *_ar_prms;
+//static struct apdata *_ar_prms;
 
 //static int _mqtt_exit_flag = false;
 
@@ -173,37 +173,37 @@ void ws_broadcast_aquapurestate(struct mg_connection *nc) {
   char data[JSON_STATUS_SIZE];
   //int size = build_aquapure_status_JSON(_ar_prms, data, JSON_STATUS_SIZE);
 
-  build_device_JSON(_ar_prms, data, JSON_STATUS_SIZE, false);
+  build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
 
   ws_send(nc, data);
 }
 
 void mqtt_broadcast_aquapurestate(struct mg_connection *nc) {
-  send_mqtt_int_msg(nc, SWG_PERCENT_TOPIC, _ar_prms->Percent);
-  if (_ar_prms->Percent == 101)
+  send_mqtt_int_msg(nc, SWG_PERCENT_TOPIC, _apdata_.Percent);
+  if (_apdata_.Percent == 101)
     send_mqtt_float_msg(nc, SWG_PERCENT_F_TOPIC, 38.4);
   else
-    send_mqtt_float_msg(nc, SWG_PERCENT_F_TOPIC, roundf(degFtoC(_ar_prms->Percent)));
+    send_mqtt_float_msg(nc, SWG_PERCENT_F_TOPIC, roundf(degFtoC(_apdata_.Percent)));
 
-  if (_ar_prms->PPM != TEMP_UNKNOWN) {
-    send_mqtt_int_msg(nc, SWG_PPM_TOPIC, _ar_prms->PPM);
-    send_mqtt_float_msg(nc, SWG_PPM_F_TOPIC, roundf(degFtoC(_ar_prms->PPM)));
+  if (_apdata_.PPM != TEMP_UNKNOWN) {
+    send_mqtt_int_msg(nc, SWG_PPM_TOPIC, _apdata_.PPM);
+    send_mqtt_float_msg(nc, SWG_PPM_F_TOPIC, roundf(degFtoC(_apdata_.PPM)));
   }
 
-  send_mqtt_int_msg(nc, SWG_TOPIC, ((_ar_prms->connected && (_ar_prms->Percent > 0))?2:0) );
-  send_mqtt_int_msg(nc, SWG_ENABELED_TOPIC, (_ar_prms->connected?2:0));
-  send_mqtt_int_msg(nc, SWG_EXTENDED_TOPIC, (int)_ar_prms->status);
-  send_mqtt_int_msg(nc, SWG_BOOST_TOPIC, _ar_prms->boost);
+  send_mqtt_int_msg(nc, SWG_TOPIC, ((_apdata_.connected && (_apdata_.Percent > 0))?2:0) );
+  send_mqtt_int_msg(nc, SWG_ENABELED_TOPIC, (_apdata_.connected?2:0));
+  send_mqtt_int_msg(nc, SWG_EXTENDED_TOPIC, (int)_apdata_.status);
+  send_mqtt_int_msg(nc, SWG_BOOST_TOPIC, _apdata_.boost);
 /*
-  if (_ar_prms->status != _ar_prms->last_status_published) {
+  if (_apdata_.status != _apdata_.last_status_published) {
 
   } else {
-   _ar_prms->last_status_published = _ar_prms->status;
+   _apdata_.last_status_published = _apdata_.status;
   }
 */
  
 }
-
+/*
 void set_swg_percent(char *sval, bool f2c) {
   float value = atof(sval);
 
@@ -211,13 +211,13 @@ void set_swg_percent(char *sval, bool f2c) {
     value = degCtoF(value);
   }
 
-  if (_ar_prms->connected != true) {
+  if (_apdata_.connected != true) {
     logMessage(LOG_ERR, "Can't set Percent %d, SWG not connected\n",value);
-     _ar_prms->changed = true;
+     _apdata_.changed = true;
     return;
-  } else if (_ar_prms->boost == true) {
+  } else if (_apdata_.boost == true) {
     logMessage(LOG_ERR, "Can't set Percent %d, SWG Boost is active\n",value);
-     _ar_prms->changed = true;
+     _apdata_.changed = true;
     return;
   }
 
@@ -231,71 +231,71 @@ void set_swg_percent(char *sval, bool f2c) {
   else if (ival < 0)
       ival = 0;
 
-  _ar_prms->Percent = ival;
+  _apdata_.Percent = ival;
 
   if (ival > 0 && ival < 101)
-    _ar_prms->last_generating_percent = ival;
-   //_ar_prms->Percent = round(degCtoF(value));
-  logMessage(LOG_INFO, "Setting SWG percent to %d", _ar_prms->Percent);
+    _apdata_.last_generating_percent = ival;
+   //_apdata_.Percent = round(degCtoF(value));
+  logMessage(LOG_INFO, "Setting SWG percent to %d", _apdata_.Percent);
     //broadcast_aquapurestate(nc);
   write_cache(_ar_prms);
-  _ar_prms->changed = true;
+  _apdata_.changed = true;
 }
 
 void set_swg_boost(bool val) {
-  if (_ar_prms->connected != true) {
+  if (_apdata_.connected != true) {
     logMessage(LOG_ERR, "Can't boost, SWG not connected\n");
-     _ar_prms->changed = true;
+     _apdata_.changed = true;
     return;
   }
 
-  if (_ar_prms->boost != val) {
-    _ar_prms->boost = val;
+  if (_apdata_.boost != val) {
+    _apdata_.boost = val;
     if (val == true) { // turning boost on
-      if (_ar_prms->Percent > 0)
-        _ar_prms->last_generating_percent = _ar_prms->Percent;
+      if (_apdata_.Percent > 0)
+        _apdata_.last_generating_percent = _apdata_.Percent;
 
-      _ar_prms->Percent = 101;
+      _apdata_.Percent = 101;
     } else { // Turning boost off
-      if (_ar_prms->last_generating_percent > 0)
-        _ar_prms->Percent = _ar_prms->last_generating_percent;
+      if (_apdata_.last_generating_percent > 0)
+        _apdata_.Percent = _apdata_.last_generating_percent;
       else
         set_swg_percent("0", false);
     }
   }
 
-  _ar_prms->changed = true;
+  _apdata_.changed = true;
 }
 
 void set_swg_on(bool val) {
-  if (_ar_prms->connected != true) {
+  if (_apdata_.connected != true) {
     logMessage(LOG_ERR, "Can't turn SWG %s, SWG not connected\n",(val==true?"on":"off"));
-     _ar_prms->changed = true;
+     _apdata_.changed = true;
     return;
   }
 
   if (val==true) {
-    if (_ar_prms->Percent > 0) {
-      logMessage(LOG_NOTICE, "Can't turn SWG %s, SWG is already %s\n",(val==true?"on":"off"),(_ar_prms->Percent>0?"on":"off"));
+    if (_apdata_.Percent > 0) {
+      logMessage(LOG_NOTICE, "Can't turn SWG %s, SWG is already %s\n",(val==true?"on":"off"),(_apdata_.Percent>0?"on":"off"));
       return;
     }
-    if (_ar_prms->last_generating_percent > 0 && _ar_prms->last_generating_percent < 101)
-      _ar_prms->Percent = _ar_prms->last_generating_percent;
+    if (_apdata_.last_generating_percent > 0 && _apdata_.last_generating_percent < 101)
+      _apdata_.Percent = _apdata_.last_generating_percent;
     else
-      _ar_prms->Percent = _ar_prms->default_percent;
+      _apdata_.Percent = _apdata_.default_percent;
   }
 
   if (val==false) {
-    if (_ar_prms->Percent == 0) {
-      logMessage(LOG_NOTICE, "Can't turn SWG %s, SWG is already %s\n",(val==true?"on":"off"),(_ar_prms->Percent>0?"on":"off"));
+    if (_apdata_.Percent == 0) {
+      logMessage(LOG_NOTICE, "Can't turn SWG %s, SWG is already %s\n",(val==true?"on":"off"),(_apdata_.Percent>0?"on":"off"));
       return;
     }
     set_swg_percent("0", false);
   }
 
-  _ar_prms->changed = true;
+  _apdata_.changed = true;
 }
-
+*/
 void action_mqtt_message(struct mg_connection *nc, struct mg_mqtt_message *msg) {
   // int i;
   static char tmp[40];
@@ -318,9 +318,9 @@ void action_mqtt_message(struct mg_connection *nc, struct mg_mqtt_message *msg) 
   int pt = strlen( _apconfig_.mqtt_aq_topic) + 1;
 
   if (strncmp(&msg->topic.p[pt], "SWG/Percent/set", 15) == 0) {
-    set_swg_percent(tmp, false);
+    set_swg_req_percent(tmp, false);
   } else if (strncmp(&msg->topic.p[pt], "SWG/Percent_f/set", 17) == 0) {
-    set_swg_percent(tmp, true);
+    set_swg_req_percent(tmp, true);
   } else if (strncmp(&msg->topic.p[pt], "SWG/Boost/set", 13) == 0) {
     if (atoi(tmp) == 1)
       set_swg_boost(true);
@@ -333,7 +333,7 @@ void action_mqtt_message(struct mg_connection *nc, struct mg_mqtt_message *msg) 
       set_swg_on(false);
     //logMessage(LOG_NOTICE, "MQTT Trying to set no settable value %.*s to %.*s\n", msg->topic.len, msg->topic.p, msg->payload.len, msg->payload.p);
     //broadcast_aquapurestate(nc);
-    _ar_prms->changed = true;
+    //_apdata_.changed = true;
   }
 }
 
@@ -357,13 +357,13 @@ void action_web_request(struct mg_connection *nc, struct http_message *http_msg)
 
     if (strcmp(command, "status") == 0) {
       char data[JSON_STATUS_SIZE];
-      int size = build_device_JSON(_ar_prms, data, JSON_STATUS_SIZE, false);
+      int size = build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
       mg_send_head(nc, 200, size, "Content-Type: application/json");
       mg_send(nc, data, size);
       return;
     } else if (strcmp(command, "homebridge") == 0) {
       char data[JSON_STATUS_SIZE];
-      int size = build_device_JSON(_ar_prms, data, JSON_STATUS_SIZE, true);
+      int size = build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, true);
       mg_send_head(nc, 200, size, "Content-Type: application/json");
       mg_send(nc, data, size);
       return;
@@ -371,7 +371,7 @@ void action_web_request(struct mg_connection *nc, struct http_message *http_msg)
                strcmp(command, "swg_percent") == 0) {
       char value[20];
       mg_get_http_var(&http_msg->query_string, "value", value, sizeof(value));
-      set_swg_percent(value, false);
+      set_swg_req_percent(value, false);
       mg_send_head(nc, 200, strlen(GET_RTN_OK), "Content-Type: text/plain");
       mg_send(nc, GET_RTN_OK, strlen(GET_RTN_OK));
       return;
@@ -429,20 +429,20 @@ void action_websocket_request(struct mg_connection *nc, struct websocket_message
   if (strcmp(request.first.value, "GET_DEVICES") == 0) {
       //char message[JSON_LABEL_SIZE*10];
       //build_device_JSON(_aqualink_data, _aqualink_config->light_programming_button_pool, _aqualink_config->light_programming_button_spa, message, JSON_LABEL_SIZE*10, false);
-      build_device_JSON(_ar_prms, data, JSON_STATUS_SIZE, false);
+      build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
       //logMessage(LOG_DEBUG, "-->%s<--", data);
       ws_send(nc, data);
   } else if (strcmp(request.first.key, "command") == 0) {
     if (strcmp(request.first.value, SWG_TOPIC) == 0) {
       //printf("Turn SWG on/off NOT IMPLIMENTED YET!\n");
-      //_ar_prms->changed = true;
+      //_apdata_.changed = true;
       if (strcmp(request.second.value, "on") == 0)
         set_swg_on(true);
       else
         set_swg_on(false);
     } else if (strcmp(request.first.value, SWG_BOOST_TOPIC) == 0) {
       //printf("Boost on/off NOT IMPLIMENTED YET!\n");
-      //_ar_prms->changed = true;
+      //_apdata_.changed = true;
       if (strcmp(request.second.value, "on") == 0)
         set_swg_boost(true);
       else
@@ -450,11 +450,11 @@ void action_websocket_request(struct mg_connection *nc, struct websocket_message
     }
   } else if (strcmp(request.first.key, "parameter") == 0) {
     if (strcmp(request.first.value, SWG_TOPIC) == 0) { // Should delete this soon
-      set_swg_percent(request.second.value, false);
+      set_swg_req_percent(request.second.value, false);
     } else if (strcmp(request.first.value, SWG_PERCENT_TOPIC) == 0) {
-      set_swg_percent(request.second.value, false);
+      set_swg_req_percent(request.second.value, false);
     } else if (strcmp(request.first.value, SWG_PERCENT_F_TOPIC) == 0) {
-      set_swg_percent(request.second.value, true);
+      set_swg_req_percent(request.second.value, true);
     }
   }
 }
@@ -608,12 +608,12 @@ void start_mqtt(struct mg_mgr *mgr) {
 
 // bool start_web_server(struct mg_mgr *mgr, struct aqualinkdata *aqdata, char *port, char* web_root) {
 // bool start_net_services(struct mg_mgr *mgr, struct aqualinkdata *aqdata, struct aqconfig *aqconfig) {
-bool start_net_services(struct mg_mgr *mgr, struct apdata *ar_prms) {
+bool start_net_services(struct mg_mgr *mgr) {
   struct mg_connection *nc;
   //_aqualink_data = aqdata;
 
   //_config = aqconfig;
-  _ar_prms = ar_prms;
+  //_ar_prms = ar_prms;
   //_config = arconf;
 
   signal(SIGTERM, signal_handler);

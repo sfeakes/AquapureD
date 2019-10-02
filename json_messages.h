@@ -56,7 +56,7 @@ int build_homebridge_JSON(struct aqualinkdata *aqdata, char* buffer, int size);
 */
 bool parseJSONwebrequest(char *buffer, struct JSONwebrequest *request);
 char *jsontok(jsontoken *jt);
-int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homekit);
+int build_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit);
 //int build_aquapure_status_JSON(struct apdata *aqdata, char* buffer, int size);
 
 #endif /* JSON_MESSAGES_H_ */

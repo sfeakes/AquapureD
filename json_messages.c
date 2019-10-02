@@ -82,7 +82,7 @@ const char* SWGstatus2test(unsigned char status)
   return "Unknown";
 }
 
-const char* getStatus(struct aqualinkdata *aqdata)
+const char* getStatus(const struct aqualinkdata *aqdata)
 {
   if (aqdata->active_thread.thread_id != 0) {
     return JSON_PROGRAMMING;
@@ -132,7 +132,7 @@ int build_aqualink_error_status_JSON(char* buffer, int size, char *msg)
 
 
 //int build_status_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
-int build_device_JSON(struct apdata *aqdata, char* buffer, int size, bool homekit)
+int build_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit)
 {
   memset(&buffer[0], 0, size);
   int length = 0;

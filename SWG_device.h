@@ -1,7 +1,12 @@
-#ifndef AR_CONFIG_H_
-#define AR_CONFIG_H_
+#ifndef SWG_DEVICE_H_
+#define SWG_DEVICE_H_
 
 #include <stdbool.h>
+
+
+#ifndef SWG_DEVICE_C_
+const extern struct apdata _apdata_;
+#endif
 
 
 // connected, receiving ACK
@@ -25,9 +30,17 @@ struct apdata
 };
 
 
-bool set_SWG_percent(int percent);
+//bool set_SWG_percent(int percent);
+void init_swg_device(bool forceConnection);
+void set_swg_uptodate();
+int prepare_swg_message(unsigned char *packet_buffer, int packet_length);
+void action_swg_message(unsigned char *packet_buffer, int packet_length);
+void set_swg_req_percent(char *sval, bool f2c);
+void set_swg_percent(int percent);
+void set_swg_boost(bool val);
+void set_swg_on(bool val);
 
-void write_cache(struct apdata *ar_prms);
-void read_cache(struct apdata *ar_prms);
+void write_swg_cache();
+void read_swg_cache();
 
 #endif

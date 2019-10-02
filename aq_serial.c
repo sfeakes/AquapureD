@@ -292,6 +292,36 @@ void send_3byte_command(int fd, unsigned char destination, unsigned char b1, uns
   send_packet(fd, packet, length);
 }
 
+void send_command(int fd, unsigned char *packet_buffer, int size)
+{
+  unsigned char packet[AQ_MAXPKTLEN];
+  int i=0;
+  
+  if (packet_buffer[0] != PCOL_JANDY) {
+    logMessage(LOG_ERR, "Only Jandy protocol supported at present!\n");
+    return;
+  }
+
+  packet[0] = NUL;
+  packet[1] = DLE;
+  packet[2] = STX;
+
+//printf("Size = %d\n",size);
+
+  for (i=3; i-2 < size; i++) {
+    //printf("added 0x%02hhx at position %d\n",packet_buffer[i-2],i);
+    packet[i] = packet_buffer[i-2];
+  }
+
+  packet[++i] = DLE;
+  packet[++i] = ETX;
+  packet[++i] = NUL;
+
+  packet[i-3] = generate_checksum(packet, i);
+
+  send_packet(fd,packet,++i);
+}
+
 void send_packet(int fd, unsigned char *packet, int length)
 {
 
@@ -341,6 +371,7 @@ void send_probe(int fd, unsigned char destination)
   }
 }
 */
+/*
 void send_messaged(int fd, unsigned char destination, char *message)
 {
   const int length = 24;
@@ -372,6 +403,7 @@ void send_messaged(int fd, unsigned char destination, char *message)
 
   log_packet("Sent ", msgPacket, length);
 }
+*/
 
 void send_ack(int fd, unsigned char command)
 {

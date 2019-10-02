@@ -4,6 +4,11 @@
 
 #include <termios.h>
 
+
+//
+#define PCOL_JANDY     0xFF
+#define PCOL_PENTAIR   0xFE
+
 // packet offsets
 #define PKT_DEST        2
 #define PKT_CMD         3
@@ -12,7 +17,8 @@
 #define PKT_STATUS_BYTES 5
 
 
-#define DEV_MASTER      0
+#define DEV_MASTER      0x00
+#define AR_ID           0x50
 
 // PACKET DEFINES
 #define NUL  0x00
@@ -172,4 +178,5 @@ void send_messaged(int fd, unsigned char destination, char *message);
 void send_1byte_command(int fd, unsigned char destination, unsigned char b1);
 void send_2byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2);
 void send_3byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
+void send_command(int rs_fd, unsigned char *packet_buffer, int size);
 #endif // AQ_SERIAL_H_

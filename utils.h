@@ -1,5 +1,6 @@
 #include <syslog.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #ifndef UTILS_H_
 #define UTILS_H_
@@ -48,6 +49,8 @@ void delay (unsigned int howLong);
 float degFtoC(float degF);
 float degCtoF(float degC);
 char* stristr(const char* haystack, const char* needle);
+int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y);
+double timval_diff(struct timeval x , struct timeval y);
 
 
 //#ifndef _UTILS_C_

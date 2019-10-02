@@ -11,7 +11,7 @@
 //bool start_web_server(struct mg_mgr *mgr, struct aqualinkdata *aqdata, char *port, char* web_root);
 //bool start_net_services(struct mg_mgr *mgr, struct aqualinkdata *aqdata, struct aqconfig *aqconfig);
 //bool start_net_services(struct mg_mgr *mgr, struct aqconfig *config, struct arconfig *ar_prms);
-bool start_net_services(struct mg_mgr *mgr, struct apdata *ar_prms);
+bool start_net_services(struct mg_mgr *mgr);
 bool broadcast_aquapurestate(struct mg_connection *nc);
 void check_net_services(struct mg_mgr *mgr);
 //void broadcast_aqualinkstate(struct mg_connection *nc);

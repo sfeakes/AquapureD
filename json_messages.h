@@ -2,6 +2,7 @@
 #define JSON_MESSAGES_H_
 
 #include "SWG_device.h"
+#include "GPIO_device.h"
 //FUNCTION PROTOTYPES
 
 #define JSON_LABEL_SIZE 300
@@ -56,7 +57,10 @@ int build_homebridge_JSON(struct aqualinkdata *aqdata, char* buffer, int size);
 */
 bool parseJSONwebrequest(char *buffer, struct JSONwebrequest *request);
 char *jsontok(jsontoken *jt);
-int build_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit);
+//int build_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit);
+int build_device_JSON(const struct apdata *aqdata, const struct gpiodata *gpiodata, char* buffer, int size, bool homekit);
+int build_swg_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit);
+int build_gpio_device_JSON(const struct gpiodata *gpiodata, char* buffer, int size, bool homekit);
 //int build_aquapure_status_JSON(struct apdata *aqdata, char* buffer, int size);
 
 #endif /* JSON_MESSAGES_H_ */

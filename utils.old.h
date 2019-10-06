@@ -1,5 +1,6 @@
 #include <syslog.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #ifndef UTILS_H_
 #define UTILS_H_
@@ -20,7 +21,6 @@
 
 #define round(a) (int) (a+0.5) // 0 decimal places
 #define roundf(a) (float) ((a*100)/100) // 2 decimal places
-#define sizearray(a)  (sizeof(a) / sizeof((a)[0]))
 
 /*
 typedef enum
@@ -28,8 +28,7 @@ typedef enum
   false = FALSE, true = TRUE
 } bool;
 */
-//void setLoggingPrms(int level , bool deamonized, char* log_file);
-void setLoggingPrms(int level , bool deamonized, const char* log_file, const char *error_messages);
+void setLoggingPrms(int level , bool deamonized, char* log_file);
 int getLogLevel();
 void daemonise ( char *pidFile, void (*main_function)(void) );
 //void debugPrint (char *format, ...);
@@ -41,8 +40,7 @@ int text2elevel(char* level);
 char *elevel2text(int level);
 char *cleanwhitespace(char *str);
 //char *cleanquotes(char *str);
-char *chopwhitespace(char *str);
-char *trimwhitespace(char *str);
+void trimwhitespace(char *str);
 char *stripwhitespace(char *str);
 int cleanint(char*str);
 bool text2bool(char *str);
@@ -51,15 +49,9 @@ void delay (unsigned int howLong);
 float degFtoC(float degF);
 float degCtoF(float degC);
 char* stristr(const char* haystack, const char* needle);
-int ascii(char *destination, char *source);
-char *prittyString(char *str);
-//void writePacketLog(char *buff);
-//void closePacketLog();
-void startInlineDebug();
-void stopInlineDebug();
-void cleanInlineDebug();
-char *getInlineLogFName();
-bool islogFileReady();
+int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y);
+double timval_diff(struct timeval x , struct timeval y);
+
 
 //#ifndef _UTILS_C_
   extern bool _daemon_;

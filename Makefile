@@ -2,15 +2,15 @@
 # define the C compiler to use
 CC = gcc
 
-#LIBS := -lpthread -lm
+LIBS := -lpthread -lm
 #LIBS := -lpthread -lwebsockets
-LIBS := -lm
+#LIBS := -lm
 
 # debug of not
 #DBG = -g -O0 -fsanitize=address -static-libasan
 #DBG = -g
 #DBG = -D TESTING
-#DBG =
+DBG =
 
 # define any compile-time flags
 #CFLAGS = -Wall -g -lpthread -lwiringPi -lm -I. 
@@ -23,7 +23,7 @@ CFLAGS = -Wall $(DBG) $(LIBS) -D MG_DISABLE_MD5 -D MG_DISABLE_HTTP_DIGEST_AUTH -
 
 #INCLUDES = -I/nas/data/Development/Raspberry/aqualink/aqualinkd
 #INCLUDES = -I./ -I../ -I./aquapure/
-INCLUDES = -I./
+INCLUDES = -I./ -I./GPIO_Pi -I./minIni
 
 # Add inputs and outputs from these tool invocations to the build variables 
 
@@ -32,7 +32,7 @@ INCLUDES = -I./
 
 #SL_SRC = serial_logger.c aq_serial.c utils.c
 #AL_SRC = aquapure_logger.c aq_serial.c utils.c
-SRCS = aquapure.c ap_net_services.c SWG_device.c aq_serial.c utils.c mongoose.c json_messages.c config.c
+SRCS = aquapure.c ap_net_services.c SWG_device.c aq_serial.c utils.c mongoose.c json_messages.c config.c packetLogger.c GPIO_device.c ./GPIO_Pi/GPIO_Pi.c ./minIni/minIni.c
 #SRCS = aq_serial.c utils.c mongoose.c json_messages.c config.c aquapured/ap_net_services.c aquapured/ap_config.c aquapured/aquapure.c
 
 OBJS = $(SRCS:.c=.o)

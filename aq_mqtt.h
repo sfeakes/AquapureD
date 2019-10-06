@@ -23,6 +23,8 @@
 #define SWG_EXTENDED_TOPIC SWG_TOPIC "/fullstatus"
 #define SWG_BOOST_TOPIC SWG_TOPIC "/Boost"
 
+#define GPIO_TOPIC "GPIO_"
+
 #define FREEZE_PROTECT "Freeze_Protect"
 #define FREEZE_PROTECT_ENABELED FREEZE_PROTECT ENABELED_SUBT
 
@@ -48,8 +50,8 @@
 #define SWG_ON 2
 #define SWG_OFF 0
 
-#define MQTT_ON "1"
-#define MQTT_OFF "0"
+#define MQTT_ON 1
+#define MQTT_OFF 0
 
 #define MQTT_LWM_TOPIC "Alive"
 

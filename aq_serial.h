@@ -8,6 +8,15 @@
 //
 #define PCOL_JANDY     0xFF
 #define PCOL_PENTAIR   0xFE
+#define PCOL_UNKNOWN   0xFD
+
+/*
+typedef enum {
+  JANDY,
+  PENTAIR,
+  P_UNKNOWN
+} protocolType;
+*/
 
 // packet offsets
 #define PKT_DEST        2
@@ -20,11 +29,29 @@
 #define DEV_MASTER      0x00
 #define AR_ID           0x50
 
-// PACKET DEFINES
+// PACKET DEFINES Jandy
 #define NUL  0x00
 #define DLE  0x10
 #define STX  0x02
 #define ETX  0x03
+
+// Pentair packet headder (first 4 bytes)
+#define PP1 0xFF
+#define PP2 0x00
+#define PP3 0xFF
+#define PP4 0xA5
+
+#define PEN_CMD_STATUS 0x07
+
+#define PEN_PKT_FROM 6
+#define PEN_PKT_DEST 5
+#define PEN_PKT_CMD 7
+
+#define PEN_HI_B_RPM 14
+#define PEN_LO_B_RPM 15
+#define PEN_HI_B_WAT 12
+#define PEN_LO_B_WAT 13
+
 
 #define AQ_MINPKTLEN    5
 #define AQ_MAXPKTLEN   64
@@ -44,6 +71,7 @@
 #define CMD_GETID       0x14  // May be remote control control
 #define CMD_PERCENT     0x11  // Set Percent
 #define CMD_PPM         0x16  // Received PPM
+
 
 /* PDA KEY CODES */  // Just plating at the moment
 #define KEY_PDA_UP     0x06
@@ -153,6 +181,8 @@ typedef struct aqualinkled
   aqledstate state;
 } aqled;
 
+
+
 // Battery Status Identifiers
 enum {
 	OK = 0,
@@ -160,7 +190,7 @@ enum {
 };
 
 
-int init_serial_port(char* tty);
+int init_serial_port(const char* tty);
 void close_serial_port(int file_descriptor);
 int generate_checksum(unsigned char* packet, int length);
 void send_ack(int file_descriptor, unsigned char command);
@@ -169,7 +199,7 @@ int get_packet(int file_descriptor, unsigned char* packet);
 //void close_serial_port(int file_descriptor, struct termios* oldtio);
 //void process_status(void const * const ptr);
 void process_status(unsigned char* ptr);
-const char* get_packet_type(unsigned char* packet, int length);
+//const char* get_packet_type(unsigned char* packet, int length);
 //void send_test_cmd(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
 //void send_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
 void send_messaged(int fd, unsigned char destination, char *message);
@@ -179,4 +209,7 @@ void send_1byte_command(int fd, unsigned char destination, unsigned char b1);
 void send_2byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2);
 void send_3byte_command(int fd, unsigned char destination, unsigned char b1, unsigned char b2, unsigned char b3);
 void send_command(int rs_fd, unsigned char *packet_buffer, int size);
+
+unsigned char getProtocolType(unsigned char* packet);
+
 #endif // AQ_SERIAL_H_

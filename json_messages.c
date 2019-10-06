@@ -29,6 +29,7 @@
 //#include "domoticz.h"
 #include "aq_mqtt.h"
 #include "SWG_device.h"
+#include "GPIO_device.h"
 #include "version.h"
 
 
@@ -130,15 +131,165 @@ int build_aqualink_error_status_JSON(char* buffer, int size, char *msg)
 
 }
 
+bool homekit_fahrenheit(bool homekit)
+{
+  return (homekit && _apconfig_.temp_units==FAHRENHEIT);
+}
+
+int _build_gpio_device_JSON(const struct gpiodata *gpiodata, char* buffer, int size, bool homekit)
+{
+  int i;
+  int length=0;
+  //bool homekit_f = homekit_fahrenheit(homekit);
+  char id[20];
+
+  for (i=0; i < gpiodata->num_devices; i++ ) {
+    sprintf(id, "%s%d",GPIO_TOPIC,_gpiodata_.devices[i].pin);
+    length += sprintf(buffer+length, "{\"type\": \"switch\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\", \"int_status\": \"%d\" },",
+                                      id,
+                                      _gpiodata_.devices[i].name,
+                                      is_gpiodevice_on(&_gpiodata_.devices[i])?JSON_ON:JSON_OFF,
+                                      is_gpiodevice_on(&_gpiodata_.devices[i])?JSON_ON:JSON_OFF,
+                                      is_gpiodevice_on(&_gpiodata_.devices[i])?MQTT_ON:MQTT_OFF);
+  }
+
+  if (buffer[length-1] == ',') {
+    buffer[length-1] = ' ';
+    length--;
+  }
+                            
+  return length;
+
+}
+
+int _build_swg_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit)
+{
+  int length = 0;
+  bool homekit_f = homekit_fahrenheit(homekit);
+
+  length += sprintf(buffer+length, "{\"type\": \"setpoint_swg\", \"id\": \"%s\", \"setpoint_id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\", \"spvalue\": \"%.*f\", \"value\": \"%.*f\", \"extended_status\": \"%d\" },",
+                                    SWG_TOPIC,
+                                    ((homekit_f)?SWG_PERCENT_F_TOPIC:SWG_PERCENT_TOPIC),
+                                    "Salt Water Generator",
+                                    aqdata->status == SWG_STATUS_ON?JSON_ON:JSON_OFF,
+                                    ((aqdata->connected && (aqdata->Percent > 0) && (aqdata->status < SWG_STATUS_TURNING_OFF) )?JSON_ON:JSON_OFF),
+                                    ((homekit)?2:0),
+                                    ((homekit_f)?degFtoC(aqdata->Percent):aqdata->Percent),
+                                    ((homekit)?2:0),
+                                    ((homekit_f)?degFtoC(aqdata->Percent):aqdata->Percent),
+                                    aqdata->status);
+
+  length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%.*f\" },",
+                                   ((homekit_f)?SWG_PERCENT_F_TOPIC:SWG_PERCENT_TOPIC),
+                                   "Salt Water Generator Percent",
+                                   "on",
+                                   ((homekit_f)?2:0),
+                                   ((homekit_f)?degFtoC(aqdata->Percent):aqdata->Percent));
+
+  if ( aqdata->PPM != TEMP_UNKNOWN ) {
+    length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%.*f\" },",
+                                   ((homekit_f)?SWG_PPM_F_TOPIC:SWG_PPM_TOPIC),
+                                   "Salt Level PPM",
+                                   "on",
+                                   ((homekit)?2:0),
+                                   ((homekit_f)?roundf(degFtoC(aqdata->PPM)):aqdata->PPM));
+  }
+
+  length += sprintf(buffer+length, "{\"type\": \"switch\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\" }",
+                                   SWG_BOOST_TOPIC,
+                                   "Salt Water Generator Boost",
+                                   aqdata->boost == true?JSON_ON:JSON_OFF,
+                                   aqdata->boost == true?JSON_ON:JSON_OFF);
+
+  return length;
+
+}
+
+int build_gpio_device_JSON(const struct gpiodata *gpiodata, char* buffer, int size, bool homekit)
+{
+  int length=0;
+  //bool homekit_f = homekit_fahrenheit(homekit);
+
+  length += sprintf(buffer+length, "{\"type\": \"devices\"");
+  length += sprintf(buffer+length, ",\"version\":\"%s\"",AQUAPURED_VERSION );
+  length += sprintf(buffer+length, ",\"name\":\"%s\"",AQUAPURED_NAME );
+  length += sprintf(buffer+length,  ", \"devices\": [");
+
+  length += _build_gpio_device_JSON(gpiodata, buffer+length, size-length, homekit);
+
+  if (buffer[length-1] == ',')
+    length--;
+
+  length += sprintf(buffer+length, "]}");
+
+  logMessage(LOG_DEBUG, "build_device_JSON %d of %d", length, size);
+
+  buffer[length] = '\0';
+
+  return strlen(buffer);
+
+}
+
+int build_swg_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit)
+{
+  int length=0;
+  //bool homekit_f = homekit_fahrenheit(homekit);
+
+  length += sprintf(buffer+length, "{\"type\": \"devices\"");
+  length += sprintf(buffer+length, ",\"version\":\"%s\"",AQUAPURED_VERSION );
+  length += sprintf(buffer+length, ",\"name\":\"%s\"",AQUAPURED_NAME );
+  length += sprintf(buffer+length, ",\"fullstatus\":\"%s\"",SWGstatus2test(aqdata->status));
+  length += sprintf(buffer+length,  ", \"devices\": [");
+
+  length += _build_swg_device_JSON(aqdata, buffer+length, size-length, homekit);
+
+  if (buffer[length-1] == ',')
+    length--;
+
+  length += sprintf(buffer+length, "]}");
+
+  logMessage(LOG_DEBUG, "build_device_JSON %d of %d", length, size);
+
+  buffer[length] = '\0';
+
+  return strlen(buffer);
+}
+
+int build_device_JSON(const struct apdata *aqdata, const struct gpiodata *gpiodata, char* buffer, int size, bool homekit)
+{
+  int length=0;
+  //bool homekit_f = homekit_fahrenheit(homekit);
+
+  length += sprintf(buffer+length, "{\"type\": \"devices\"");
+  length += sprintf(buffer+length, ",\"version\":\"%s\"",AQUAPURED_VERSION );
+  length += sprintf(buffer+length, ",\"name\":\"%s\"",AQUAPURED_NAME );
+  length += sprintf(buffer+length, ",\"fullstatus\":\"%s\"",SWGstatus2test(aqdata->status));
+  length += sprintf(buffer+length,  ", \"devices\": [");
+
+  length += _build_swg_device_JSON(aqdata, buffer+length, size-length, homekit);
+  length += sprintf(buffer+length,  ",");
+  length += _build_gpio_device_JSON(gpiodata, buffer+length, size-length, homekit);
+
+  if (buffer[length-1] == ',')
+    length--;
+
+  length += sprintf(buffer+length, "]}");
+
+  logMessage(LOG_DEBUG, "build_device_JSON %d of %d", length, size);
+
+  buffer[length] = '\0';
+
+  return strlen(buffer);
+}
 
 //int build_status_JSON(struct aqualinkdata *aqdata, char* buffer, int size)
-int build_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit)
+int build_device_JSON_OLD(const struct apdata *aqdata, char* buffer, int size, bool homekit)
 {
   memset(&buffer[0], 0, size);
   int length = 0;
   //int i;
 
-  bool homekit_f = (homekit && _apconfig_.temp_units==FAHRENHEIT);
+  bool homekit_f = homekit_fahrenheit(homekit);
 
   length += sprintf(buffer+length, "{\"type\": \"devices\"");
   length += sprintf(buffer+length, ",\"version\":\"%s\"",AQUAPURED_VERSION );

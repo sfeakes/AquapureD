@@ -11,10 +11,12 @@
 #include "aq_serial.h"
 #include "config.h"
 #include "SWG_device.h"
+#include "GPIO_device.h"
 
 #include "utils.h"
 #include "ap_net_services.h"
 
+#include "version.h"
 //#define SLOG_MAX 80
 //#define PACKET_MAX 10000
 
@@ -69,7 +71,7 @@ void printPacket(unsigned char ID, unsigned char *packet_buffer, int packet_leng
   printf("\n");
 }
 */
-
+/*
 void debugPacketPrint(unsigned char ID, unsigned char *packet_buffer, int packet_length)
 {
   char buff[1000];
@@ -93,8 +95,7 @@ void debugPacketPrint(unsigned char ID, unsigned char *packet_buffer, int packet
 
   logMessage(LOG_DEBUG_SERIAL, "%s", buff);
 }
-
-
+*/
 
 int main(int argc, char *argv[]) {
   //int rs_fd;
@@ -113,6 +114,8 @@ int main(int argc, char *argv[]) {
   //struct aqconfig config;
   //struct arconfig ar_prms;
   bool deamonize;
+
+  printf("%s %s\n",AQUAPURED_NAME,AQUAPURED_VERSION);
 
   char *cfgFile = "aquapured.conf";
 
@@ -150,9 +153,11 @@ int main(int argc, char *argv[]) {
   init_parameters(deamonize);
   readCfg(cfgFile);
 
-  setLoggingPrms(_apconfig_.log_level, _apconfig_.deamonize, _apconfig_.log_file);
+  //setLoggingPrms(_apconfig_.log_level, _apconfig_.deamonize, _apconfig_.log_file, _apconfig_.last_display_message);
+  setLoggingPrms(_apconfig_.log_level, _apconfig_.deamonize, _apconfig_.log_file, NULL);
 
   init_swg_device(forceConnection);
+  init_gpio_device();
 
   //read_cache(&_ar_prms);
   
@@ -240,8 +245,8 @@ void main_loop() {
     } else if (packet_length > 0) {
       wait_for_reply = false;
       sent_loop_cnt = 0;
-      if (getLogLevel() >= LOG_DEBUG_SERIAL)
-        debugPacketPrint(AR_ID, packet_buffer, packet_length);
+      //if (getLogLevel() >= LOG_DEBUG_SERIAL)
+      //  debugPacketPrint(AR_ID, packet_buffer, packet_length);
 
       if (packet_buffer[PKT_DEST] == 0x00) {
         if (last_packet_sent_to == AR_ID)
@@ -256,10 +261,11 @@ void main_loop() {
     //sleep(1);
     check_net_services(&mgr);
     
-    if ( _apdata_.changed == true ) {
+    if ( _apdata_.changed == true || _gpiodata_.changed == true ) {
       broadcast = broadcast_aquapurestate(mgr.active_connections);
       //_ar_prms.changed = false;
       set_swg_uptodate();
+      set_gpio_uptodate();
     }
 
     mg_mgr_poll(&mgr, 500);

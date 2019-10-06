@@ -20,6 +20,17 @@ bool _forceConnection = false;
 
 
 
+// NSF MOVE THIS TO UTILS OR SOMEWHERE
+double timval_diff(struct timeval time1, struct timeval time2) {
+  double result;
+  
+  result = time2.tv_sec-time1.tv_sec;
+  result += (double)(time2.tv_usec-time1.tv_usec)/1000000;
+  return(result);
+
+}
+
+
 void debugStatusPrint();
 
 
@@ -100,7 +111,7 @@ int prepare_swg_message(unsigned char *packet_buffer, int packet_length)
         // Resend the last message.
         logMessage(LOG_DEBUG, "SWG resend last message\n");
         rtn = _prepare_swg_message(_last_msg, packet_buffer, packet_length);
-        rtn = _prepare_swg_message(CMD_PERCENT, packet_buffer, packet_length);
+        //rtn = _prepare_swg_message(CMD_PERCENT, packet_buffer, packet_length);
       }
       //length = 0;
       // We didn't receive reply from last message.
@@ -187,6 +198,11 @@ void set_swg_uptodate() {
    _apdata_.changed = false;
 }
 
+
+int roundTo(int num, int denominator) {
+  return ((num + (denominator/2) ) / denominator )* denominator;
+}
+
 void set_swg_req_percent(char *sval, bool f2c) {
   float value = atof(sval);
 
@@ -210,14 +226,14 @@ void set_swg_percent(int percent) {
   }
 
   if (percent > 100)
-      percent = 100;
+     _apdata_.Percent = 100;
   else if (percent < 0)
-      percent = 0;
+     _apdata_.Percent = 0;
+  else
+     _apdata_.Percent = roundTo(percent, 5);
 
-  _apdata_.Percent = percent;
-
-  if (percent > 0 && percent < 101)
-    _apdata_.last_generating_percent = percent;
+  if (_apdata_.Percent > 0 && _apdata_.Percent < 101)
+    _apdata_.last_generating_percent = _apdata_.Percent;
    //_apdata_.Percent = round(degCtoF(value));
   logMessage(LOG_INFO, "Setting SWG percent to %d", _apdata_.Percent);
     //broadcast_aquapurestate(nc);

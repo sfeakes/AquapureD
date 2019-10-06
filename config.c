@@ -35,10 +35,13 @@
 #include <unistd.h>
 #include <net/if.h>
 
+#include "minIni.h"
 
 #include "config.h"
 #include "utils.h"
 #include "aq_serial.h"
+#include "version.h"
+#include "GPIO_device.h"
 
 #define MAXCFGLINE 256
 
@@ -52,10 +55,11 @@ struct apconfig _apconfig_;
 void init_parameters (bool deamonize)
 {
   //char *p;
-  _apconfig_.serial_port = DEFAULT_SERIALPORT;
-  _apconfig_.log_level = DEFAULT_LOG_LEVEL;
-  _apconfig_.socket_port = DEFAULT_WEBPORT;
-  _apconfig_.web_directory = DEFAULT_WEBROOT;
+  //_apconfig_.serial_port = DEFAULT_SERIALPORT;
+  //_apconfig_.log_level = DEFAULT_LOG_LEVEL;
+  //_apconfig_.socket_port = DEFAULT_WEBPORT;
+  //_apconfig_.web_directory = DEFAULT_WEBROOT;
+  
   //parms->device_id = strtoul(DEFAULT_DEVICE_ID, &p, 16);
   //parms->device_id = strtoul(DEFAULT_DEVICE_ID, NULL, 16);
   //sscanf(DEFAULT_DEVICE_ID, "0x%x", &parms->device_id);
@@ -63,10 +67,11 @@ void init_parameters (bool deamonize)
 
   //parms->mqtt_dz_sub_topic = DEFAULT_MQTT_DZ_OUT;
   //parms->mqtt_dz_pub_topic = DEFAULT_MQTT_DZ_IN;
-  _apconfig_.mqtt_aq_topic = DEFAULT_MQTT_AQ_TP;
-  _apconfig_.mqtt_server = DEFAULT_MQTT_SERVER;
-  _apconfig_.mqtt_user = DEFAULT_MQTT_USER;
-  _apconfig_.mqtt_passwd = DEFAULT_MQTT_PASSWD;
+  
+  //_apconfig_.mqtt_aq_topic = DEFAULT_MQTT_AQ_TP;
+  //_apconfig_.mqtt_server = DEFAULT_MQTT_SERVER;
+  //_apconfig_.mqtt_user = DEFAULT_MQTT_USER;
+  //_apconfig_.mqtt_passwd = DEFAULT_MQTT_PASSWD;
 
   //parms->dzidx_air_temp = TEMP_UNKNOWN;
   //parms->dzidx_pool_water_temp = TEMP_UNKNOWN;
@@ -75,7 +80,7 @@ void init_parameters (bool deamonize)
   //parms->dzidx_spa_thermostat = TEMP_UNKNOWN; // removed until domoticz has a better virtual thermostat
   //parms->light_programming_mode = 0;
   _apconfig_.deamonize = deamonize;
-  _apconfig_.log_file = '\0';
+  //_apconfig_.log_file = '\0';
   //parms->pda_mode = false;
   _apconfig_.convert_mqtt_temp = true;
   //parms->convert_dz_temp = true;
@@ -185,8 +190,38 @@ char *generate_mqtt_id(char *buf, int len) {
   return buf;
 }
 
-
 void readCfg (char *cfgFile)
+{
+  char str[100];
+  //long n;
+  //int i;
+  //int idx=0;
+
+  ini_gets("AQUACONTROLD", "LOG_LEVEL", "WARNING", str, sizearray(str), cfgFile);
+  if (_apconfig_.log_level != LOG_DEBUG)
+    _apconfig_.log_level = text2elevel(str);
+
+  ini_gets("AQUACONTROLD", "NAME", AQUAPURED_NAME, _apconfig_.name, sizearray(_apconfig_.name), cfgFile);
+  ini_gets("AQUACONTROLD", "WEB_PORT", "0", _apconfig_.socket_port, sizearray(_apconfig_.socket_port), cfgFile);
+  ini_gets("AQUACONTROLD", "WEB_DIRECTORY", "./", _apconfig_.web_directory, sizearray(_apconfig_.web_directory), cfgFile);
+  ini_gets("AQUACONTROLD", "LOG_FILE", '\0', _apconfig_.log_file, sizearray(_apconfig_.log_file), cfgFile);
+  ini_gets("AQUACONTROLD", "SERIAL_PORT", DEFAULT_SERIALPORT,_apconfig_.serial_port, sizearray(_apconfig_.serial_port), cfgFile);
+  //ini_gets("AUDIOTRON", "CACHE", "/tmp/AUDIOTRON.cache", _atconfig_.cache_file, sizearray(_atconfig_.cache_file), inifile);
+  //ini_gets("AUDIOTRON", "CACHE", "/tmp/AUDIOTRON.cache", _atconfig_.cache_file, 512, inifile);
+  ini_gets("AQUACONTROLD", "MQTT_ADDRESS", NULL, _apconfig_.mqtt_server, sizearray(_apconfig_.mqtt_server), cfgFile);
+  ini_gets("AQUACONTROLD", "MQTT_USER", NULL, _apconfig_.mqtt_user, sizearray(_apconfig_.mqtt_user), cfgFile);
+  ini_gets("AQUACONTROLD", "MQTT_PASSWD", NULL, _apconfig_.mqtt_passwd, sizearray(_apconfig_.mqtt_passwd), cfgFile);
+  ini_gets("AQUACONTROLD", "MQTT_TOPIC", DEFAULT_MQTT_AQ_TP,_apconfig_.mqtt_topic, sizearray(_apconfig_.mqtt_topic), cfgFile);
+
+
+  read_gpio_config(cfgFile);
+
+  //ini_gets("AQUACONTROLD", "MQTT_PASSWD", NULL, _apconfig_.mqtt_passwd, sizearray(_apconfig_.mqtt_passwd), inifile);
+}
+
+
+/*
+void readCfg_OLD (char *cfgFile)
 //void readCfg (struct aqconfig *config_parameters, struct aqualinkdata *aqdata, char *cfgFile)
 {
   FILE * fp ;
@@ -235,23 +270,7 @@ void readCfg (char *cfgFile)
                _apconfig_.mqtt_passwd = cleanalloc(indx+1);
             } else if (strncasecmp (b_ptr, "convert_mqtt_temp_to_c", 22) == 0) {
                _apconfig_.convert_mqtt_temp = text2bool(indx+1);
-            }/*else if (strncasecmp (b_ptr, "pool_thermostat_dzidx", 21) == 0) {      // removed until domoticz has a better virtual thermostat
-               _apconfig_.dzidx_pool_thermostat = strtoul(indx+1, NULL, 10);
-            } else if (strncasecmp (b_ptr, "spa_thermostat_dzidx", 20) == 0) {
-               _apconfig_.dzidx_spa_thermostat = strtoul(indx+1, NULL, 10);
-            } */
-            /*else if (strncasecmp (b_ptr, "button_", 7) == 0) {
-              int num = strtoul(b_ptr+7, NULL, 10) - 1;
-              //logMessage (LOG_DEBUG, "Button %d\n", strtoul(b_ptr+7, NULL, 10));
-              if (strncasecmp (b_ptr+9, "_label", 6) == 0) {
-                //logMessage (LOG_DEBUG, "     Label %s\n", cleanalloc(indx+1));
-                aqdata->aqbuttons[num].label = cleanalloc(indx+1);
-              } else if (strncasecmp (b_ptr+9, "_dzidx", 6) == 0) {
-                //logMessage (LOG_DEBUG, "     dzidx %d\n", strtoul(indx+1, NULL, 10));
-                aqdata->aqbuttons[num].dz_idx = strtoul(indx+1, NULL, 10);
-              }
             }
-            */
           } 
           //line++;
         }
@@ -261,12 +280,12 @@ void readCfg (char *cfgFile)
 
     fclose(fp);
   } else {
-    /* error processing, couldn't open file */
+   
     displayLastSystemError(cfgFile);
     exit (EXIT_FAILURE);
   }
 }
-
+*/
 
 
 

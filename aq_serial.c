@@ -26,92 +26,98 @@
 
 #include "aq_serial.h"
 #include "utils.h"
+#include "packetLogger.h"
 
 //#define BLOCKING_MODE
-
+#define PENTAIR_LENGTH_FIX
 static struct termios _oldtio;
 
 void send_packet(int fd, unsigned char *packet, int length);
+unsigned char getProtocolType(unsigned char* packet);
 
-
-void log_packet(char *init_str, unsigned char* packet, int length)
+// Generate and return checksum of packet.
+int generate_checksum(unsigned char* packet, int length)
 {
-  if ( getLogLevel() < LOG_DEBUG_SERIAL)
-    return;
+  int i, sum, n;
 
-  int cnt;
-  int i;
-  char buff[MAXLEN];
-
-  cnt = sprintf(buff, "%s", init_str);
-  cnt += sprintf(buff+cnt, " | HEX: ");
-  //printHex(packet_buffer, packet_length);
-  for (i=0;i<length;i++)
-    cnt += sprintf(buff+cnt, "0x%02hhx|",packet[i]);
-
-  cnt += sprintf(buff+cnt, "\n");
-  logMessage(LOG_DEBUG_SERIAL, buff);
-/*
-  int i;
-  char temp_string[64];
-  char message_buffer[MAXLEN];
-
-  sprintf(temp_string, "Send 0x%02hhx|", packet[0]);
-  strcpy(message_buffer, temp_string);
-
-  for (i = 1; i < length; i++) {
-    sprintf(temp_string, "0x%02hhx|", packet[i]);
-    strcat(message_buffer, temp_string);
-  }
-
-  strcat(message_buffer, "\n");
-  logMessage(LOG_DEBUG, message_buffer);
-  */
+  n = length - 3;
+  sum = 0;
+  for (i = 0; i < n; i++)
+  sum += (int) packet[i];
+  return(sum & 0x0ff);
 }
 
-const char* get_packet_type(unsigned char* packet, int length)
+bool check_jandy_checksum(unsigned char* packet, int length)
 {
-  static char buf[15];
+  if (generate_checksum(packet, length) == packet[length-3])
+    return true;
 
-  if (length <= 0 )
-    return "";
-
-  switch (packet[PKT_CMD]) {
-    case CMD_ACK:
-      return "Ack";
-    break;
-    case CMD_STATUS:
-      return "Status";
-    break;
-    case CMD_MSG:
-    case CMD_MSG_LONG:
-      return "Message";
-    break;
-    case CMD_PROBE:
-      return "Probe";
-    break;
-    case CMD_GETID:
-      return "GetID";
-    break;
-    case CMD_PERCENT:
-      return "AR %%";
-    break;
-    case CMD_PPM:
-      return "AR PPM";
-    break;
-    default:
-      sprintf(buf, "Unknown '0x%02hhx'", packet[PKT_CMD]);
-      return buf;
-    break;
-  }
+  return false;
 }
 
+bool check_pentair_checksum(unsigned char* packet, int length)
+{
+  printf("check_pentair_checksum \n");
+  int i, sum, n;
+  n = packet[8] + 9;
+  //n = packet[8] + 8;
+  sum = 0;
+  for (i = 3; i < n; i++) {
+    //printf("Sum 0x%02hhx\n",packet[i]);
+    sum += (int) packet[i];
+  }
+
+  //printf("Check High 0x%02hhx = 0x%02hhx = 0x%02hhx\n",packet[n], packet[length-2],((sum >> 8) & 0xFF) );
+  //printf("Check Low  0x%02hhx = 0x%02hhx = 0x%02hhx\n",packet[n + 1], packet[length-1], (sum & 0xFF) ); 
+
+  // Check against caculated length
+  if (sum == (packet[length-2] * 256 + packet[length-1]))
+    return true;
+
+  // Check against actual # length
+  if (sum == (packet[n] * 256 + packet[n+1])) {
+    logMessage(LOG_ERR, "Pentair checksum is accurate but length is not\n");
+    return true;
+  }
+  
+  return false;
+}
+
+
+void generate_pentair_checksum(unsigned char* packet, int length)
+{
+  int i, sum, n;
+  n = packet[8] + 9;
+  //n = packet[8] + 6;
+  sum = 0;
+  for (i = 3; i < n; i++) {
+    //printf("Sum 0x%02hhx\n",packet[i]);
+    sum += (int) packet[i];
+  }
+
+  packet[n+1] = (unsigned char) (sum & 0xFF);        // Low Byte
+  packet[n] = (unsigned char) ((sum >> 8) & 0xFF); // High Byte
+
+}
+
+
+unsigned char getProtocolType(unsigned char* packet) {
+  if (packet[0] == DLE)
+    return PCOL_JANDY;
+  else if (packet[0] == PP1)
+    return PCOL_PENTAIR;
+
+  return PCOL_UNKNOWN; 
+}
+
+
+#ifndef PLAYBACK_MODE
 /*
 Open and Initialize the serial communications port to the Aqualink RS8 device.
 Arg is tty or port designation string
 returns the file descriptor
 */
-int init_serial_port(char* tty)
+int init_serial_port(const char* tty)
 {
   long BAUD = B9600;
   long DATABITS = CS8;
@@ -166,17 +172,7 @@ void close_serial_port(int fd)
   logMessage(LOG_DEBUG_SERIAL, "Closed serial port\n");
 }
 
-// Generate and return checksum of packet.
-int generate_checksum(unsigned char* packet, int length)
-{
-  int i, sum, n;
 
-  n = length - 3;
-  sum = 0;
-  for (i = 0; i < n; i++)
-  sum += (int) packet[i];
-  return(sum & 0x0ff);
-}
 
 
 
@@ -292,6 +288,53 @@ void send_3byte_command(int fd, unsigned char destination, unsigned char b1, uns
   send_packet(fd, packet, length);
 }
 
+/*
+ unsigned char tp[] = {PCOL_PENTAIR, 0x07, 0x0F, 0x10, 0x08, 0x0D, 0x55, 0x55, 0x5B, 0x2A, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00};
+ send_command(0, tp, 19);
+ Should produce
+{0xFF, 0x00, 0xFF, 0xA5, 0x07, 0x0F, 0x10, 0x08, 0x0D, 0x55, 0x55, 0x5B, 0x2A, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x02, 0x9E};
+ <-------  headder ----> <-- type to from type-> <len> <------------------------------ data ----------------------------------------> <checksum>
+*/
+
+void send_pentair_command(int fd, unsigned char *packet_buffer, int size)
+{
+  unsigned char packet[AQ_MAXPKTLEN];
+  int i=0;
+
+  packet[0] = NUL;
+  packet[1] = PP1;
+  packet[2] = PP2;
+  packet[3] = PP3;
+  packet[4] = PP4;
+
+  //packet[i++] = 0x00; // from
+  //packet[i++] = // to
+  for (i=5; i-4 < size; i++) {
+    //printf("added 0x%02hhx at position %d\n",packet_buffer[i-4],i);
+    if (i==6) {
+      // Replace source
+      packet[i] = 0x00;
+    } else if (i==9) {
+      // Replace length
+      //packet[i] = 0xFF;
+      packet[i] = (unsigned char)size-6;
+    } else {
+      packet[i] = packet_buffer[i-4];
+    }
+
+    //packet[i] = packet_buffer[i-4];    
+  }
+
+  packet[++i] = NUL;  // Checksum
+  packet[++i] = NUL;  // Checksum
+  generate_pentair_checksum(&packet[1], i);
+  packet[++i] = NUL;
+
+
+  //logPacket(packet, i);
+  send_packet(fd,packet,i);
+}
+
 void send_command(int fd, unsigned char *packet_buffer, int size)
 {
   unsigned char packet[AQ_MAXPKTLEN];
@@ -299,14 +342,13 @@ void send_command(int fd, unsigned char *packet_buffer, int size)
   
   if (packet_buffer[0] != PCOL_JANDY) {
     logMessage(LOG_ERR, "Only Jandy protocol supported at present!\n");
+    send_pentair_command(fd, packet_buffer, size);
     return;
   }
 
   packet[0] = NUL;
   packet[1] = DLE;
   packet[2] = STX;
-
-//printf("Size = %d\n",size);
 
   for (i=3; i-2 < size; i++) {
     //printf("added 0x%02hhx at position %d\n",packet_buffer[i-2],i);
@@ -333,77 +375,13 @@ void send_packet(int fd, unsigned char *packet, int length)
   }
 
   if ( getLogLevel() >= LOG_DEBUG_SERIAL) {
-    char buf[30];
-    sprintf(buf, "Sent     %8.8s ", get_packet_type(packet+1, length));
-    log_packet(buf, packet, length);
+    //char buf[30];
+    //sprintf(buf, "Sent     %8.8s ", get_packet_type(packet+1, length));
+    //log_packet(buf, packet, length);
+    logPacket(packet, length);
   }
 }
 
-/*
-void send_probe(int fd, unsigned char destination)
-{
-  const int length = 9;
-  unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, CMD_PROBE, NUL, DLE, ETX, NUL };
-  //unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, NUL, NUL, NUL, 0x13, DLE, ETX, NUL };
-
-  // Update the packet and checksum if command argument is not NUL.
-  ackPacket[3] = destination;
-  ackPacket[5] = generate_checksum(ackPacket, length-1); 
-
-#ifdef BLOCKING_MODE
-  write(fd, ackPacket, length);
-#else
-  int nwrite, i;
-  for (i=0; i<length; i += nwrite) {        
-    nwrite = write(fd, ackPacket + i, length - i);
-    if (nwrite < 0) 
-      logMessage(LOG_ERR, "write to serial port failed\n");
-  }
-  //logMessage(LOG_DEBUG_SERIAL, "Send %d bytes to serial\n",length);
-  //tcdrain(fd);
-  //logMessage(LOG_DEBUG, "Send '0x%02hhx' to '0x%02hhx'\n", command, destination);
-#endif  
-
-  if ( getLogLevel() >= LOG_DEBUG_SERIAL) {
-    char buf[30];
-    sprintf(buf, "Sent     %8.8s ", get_packet_type(ackPacket+1, length));
-    log_packet(buf, ackPacket, length);
-  }
-}
-*/
-/*
-void send_messaged(int fd, unsigned char destination, char *message)
-{
-  const int length = 24;
-  int i;
-  //unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, CMD_ACK, NUL, NUL, 0x13, DLE, ETX, NUL };
-  unsigned char msgPacket[] = { DLE,STX,DEV_MASTER,CMD_MSG,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,NUL,DLE,ETX };
-  //unsigned char ackPacket[] = { NUL, DLE, STX, DEV_MASTER, NUL, NUL, NUL, 0x13, DLE, ETX, NUL };
-
-  // Update the packet and checksum if command argument is not NUL.
-  msgPacket[2] = destination;
-  for (i=0; i < strlen(message) && i < AQ_MSGLEN; i++)
-    msgPacket[4+i] = message[i];
-
-  msgPacket[length-3] = generate_checksum(msgPacket, length-1);
-
-#ifdef BLOCKING_MODE
-  write(fd, msgPacket, length);
-#else
-  int nwrite;
-  for (i=0; i<length; i += nwrite) {        
-    nwrite = write(fd, msgPacket + i, length - i);
-    if (nwrite < 0) 
-      logMessage(LOG_ERR, "write to serial port failed\n");
-  }
-  //logMessage(LOG_DEBUG_SERIAL, "Send %d bytes to serial\n",length);
-  //tcdrain(fd);
-  //logMessage(LOG_DEBUG, "Send '0x%02hhx' to '0x%02hhx'\n", command, destination);
-#endif  
-
-  log_packet("Sent ", msgPacket, length);
-}
-*/
 
 void send_ack(int fd, unsigned char command)
 {
@@ -415,19 +393,10 @@ void send_ack(int fd, unsigned char command)
   if(command != NUL) {
     ackPacket[6] = command;
     ackPacket[7] = generate_checksum(ackPacket, length-1);
-
-    // NULL out the command byte if it is the same. Difference implies that
-    // a new command has come in, and is awaiting processing.
-    /*
-    if(aqualink_cmd == command) {
-      aqualink_cmd = NUL;
-    }
-    */
-    
-    // In debug mode, log the packet to the private log file.
-    //log_packet(ackPacket, length);
   }
 
+  send_packet(fd, ackPacket, length);
+/*
   // Send the packet to the master device.
   //write(fd, ackPacket, length);
   //logMessage(LOG_DEBUG, "Send '0x%02hhx' to controller\n", command);
@@ -445,15 +414,229 @@ void send_ack(int fd, unsigned char command)
   //tcdrain(fd);
 #endif  
   
-  log_packet("Sent ", ackPacket, length);
+  //log_packet("Sent ", ackPacket, length);
+  logPacket( ackPacket, length);
+  */
 }
+
+
+int get_packet(int fd, unsigned char* packet)
+{
+  unsigned char byte;
+  int bytesRead;
+  int index = 0;
+  bool endOfPacket = false;
+  //bool packetStarted = FALSE;
+  bool lastByteDLE = false;
+  int retry = 0;
+  bool jandyPacketStarted = false;
+  bool pentairPacketStarted = false;
+  //bool lastByteDLE = false;
+  int PentairPreCnt = 0;
+  int PentairDataCnt = -1;
+
+  // Read packet in byte order below
+  // DLE STX ........ ETX DLE
+  // sometimes we get ETX DLE and no start, so for now just ignoring that.  Seem to be more applicable when busy RS485 traffic
+
+  while (!endOfPacket) {
+    bytesRead = read(fd, &byte, 1);
+    //if (bytesRead < 0 && errno == EAGAIN && packetStarted == FALSE && lastByteDLE == FALSE) {
+    if (bytesRead < 0 && errno == EAGAIN && 
+        jandyPacketStarted == false && 
+        pentairPacketStarted == false && 
+        lastByteDLE == false) {
+      // We just have nothing to read
+      return 0;
+    } else if (bytesRead < 0 && errno == EAGAIN) {
+      // If we are in the middle of reading a packet, keep going
+      if (retry > 20) {
+        logMessage(LOG_WARNING, "Serial read timeout\n");
+        //log_packet(LOG_WARNING, "Bad receive packet ", packet, index);
+        logPacketError(packet, index);
+        return 0;
+      }
+      retry++;
+      delay(10);
+ #ifdef TESTING
+    } else if (bytesRead == 0 && jandyPacketStarted == false && pentairPacketStarted == false) {
+      // Probably set port to /dev/null for testing.
+      //printf("Read loop return\n");
+      return 0;
+  #endif
+    } else if (bytesRead == 1) {
+
+      if (lastByteDLE == true && byte == NUL)
+      {
+        // Check for DLE | NULL (that's escape DLE so delete the NULL)
+        //printf("IGNORE THIS PACKET\n");
+        lastByteDLE = false;
+      }
+      else if (lastByteDLE == true)
+      {
+        if (index == 0)
+          index++;
+
+        packet[index] = byte;
+        index++;
+        if (byte == STX && jandyPacketStarted == false)
+        {
+          jandyPacketStarted = true;
+          pentairPacketStarted = false;
+        }
+        else if (byte == ETX && jandyPacketStarted == true)
+        {
+          endOfPacket = true;
+        }
+      }
+      else if (jandyPacketStarted || pentairPacketStarted)
+      {
+        packet[index] = byte;
+        index++;
+        if (pentairPacketStarted == true && index == 9)
+        {
+          //printf("Read 0x%02hhx %d pentair\n", byte, byte);
+          PentairDataCnt = byte;
+        }
+        if (PentairDataCnt >= 0 && index - 11 >= PentairDataCnt && pentairPacketStarted == true)
+        {
+          endOfPacket = true;
+          PentairPreCnt = -1;
+        }
+      }
+      else if (byte == DLE && jandyPacketStarted == false)
+      {
+        packet[index] = byte;
+      }
+
+      // // reset index incase we have EOP before start
+      if (jandyPacketStarted == false && pentairPacketStarted == false)
+      {
+        index = 0;
+      }
+
+      if (byte == DLE && pentairPacketStarted == false)
+      {
+        lastByteDLE = true;
+        PentairPreCnt = -1;
+      }
+      else
+      {
+        lastByteDLE = false;
+        if (byte == PP1 && PentairPreCnt == 0)
+          PentairPreCnt = 1;
+        else if (byte == PP2 && PentairPreCnt == 1)
+          PentairPreCnt = 2;
+        else if (byte == PP3 && PentairPreCnt == 2)
+          PentairPreCnt = 3;
+        else if (byte == PP4 && PentairPreCnt == 3)
+        {
+          pentairPacketStarted = true;
+          jandyPacketStarted = false;
+          PentairDataCnt = -1;
+          packet[0] = PP1;
+          packet[1] = PP2;
+          packet[2] = PP3;
+          packet[3] = byte;
+          index = 4;
+        }
+        else if (byte != PP1) // Don't reset counter if multiple PP1's
+          PentairPreCnt = 0;
+      }
+    } else if(bytesRead < 0) {
+      // Got a read error. Wait one millisecond for the next byte to
+      // arrive.
+      logMessage(LOG_WARNING, "Read error: %d - %s\n", errno, strerror(errno));
+      if(errno == 9) {
+        // Bad file descriptor. Port has been disconnected for some reason.
+        // Return a -1.
+        return -1;
+      }
+      delay(100);
+    }
+
+    // Break out of the loop if we exceed maximum packet
+    // length.
+    if (index >= AQ_MAXPKTLEN) {
+      logPacketError(packet, index);
+      logMessage(LOG_WARNING, "Serial packet too large\n");
+      //log_packet(LOG_WARNING, "Bad receive packet ", packet, index);
+      return 0;
+      break;
+    }
+  }
+
+  //logMessage(LOG_DEBUG, "Serial checksum, length %d got 0x%02hhx expected 0x%02hhx\n", index, packet[index-3], generate_checksum(packet, index));
+  if (jandyPacketStarted) {
+    if (check_jandy_checksum(packet, index) != true){
+      logPacketError(packet, index);
+      logMessage(LOG_WARNING, "Serial read bad Jandy checksum, ignoring\n");
+      //log_packet(LOG_WARNING, "Bad receive packet ", packet, index);
+      return 0;
+    }
+  } else if (pentairPacketStarted) {
+    if (check_pentair_checksum(packet, index) != true){
+      logPacketError(packet, index);
+      logMessage(LOG_WARNING, "Serial read bad Pentair checksum, ignoring\n");
+      //log_packet(LOG_WARNING, "Bad receive packet ", packet, index);
+      return 0;
+    }
+  }
+/* 
+  if (generate_checksum(packet, index) != packet[index-3]){
+    logMessage(LOG_WARNING, "Serial read bad checksum, ignoring\n");
+    log_packet(LOG_WARNING, "Bad receive packet ", packet, index);
+    return 0;
+  } else*/ if (index < AQ_MINPKTLEN && (jandyPacketStarted || pentairPacketStarted) ) { //NSF. Sometimes we get END sequence only, so just ignore.
+    logPacketError(packet, index);
+    logMessage(LOG_WARNING, "Serial read too small\n");
+    //log_packet(LOG_WARNING, "Bad receive packet ", packet, index);
+    return 0;
+  }
+
+  logMessage(LOG_DEBUG_SERIAL, "Serial read %d bytes\n",index);
+  logPacket(packet, index);
+  // Return the packet length.
+  return index;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Reads the bytes of the next incoming packet, and
 // returns when a good packet is available in packet
 // fd: the file descriptor to read the bytes from
 // packet: the unsigned char buffer to store the bytes in
 // returns the length of the packet
-int get_packet(int fd, unsigned char* packet)
+int get_packet_OLD(int fd, unsigned char* packet)
 {
   unsigned char byte;
   int bytesRead;
@@ -560,11 +743,13 @@ int get_packet(int fd, unsigned char* packet)
   
   if (generate_checksum(packet, index) != packet[index-3]){
     logMessage(LOG_WARNING, "Serial read bad checksum, ignoring\n");
-    log_packet("Bad packet ", packet, index);
+    //log_packet("Bad packet ", packet, index);
+    logPacketError(packet, index);
     return 0;
   } else if (index < AQ_MINPKTLEN) {
     logMessage(LOG_WARNING, "Serial read too small\n");
-    log_packet("Bad packet ", packet, index);
+    //log_packet("Bad packet ", packet, index);
+    logPacketError(packet, index);
     return 0;
   }
 
@@ -573,3 +758,7 @@ int get_packet(int fd, unsigned char* packet)
   return index;
 }
 
+
+#else // PLAYBACK_MODE
+
+#endif // PLAYBACK_MODE

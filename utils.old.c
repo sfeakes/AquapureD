@@ -27,44 +27,27 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <ctype.h>
-#include <fcntl.h>
-
-#ifdef AD_DEBUG
-#include <sys/time.h>
-#endif
 
 #ifndef _UTILS_C_
 #define _UTILS_C_
 #endif
 
-
-
 #include "utils.h"
 
-
-#define DEFAULT_LOG_FILE "/tmp/aqualinkd-inline.log"
 //#define MAXCFGLINE 265
 #define TIMESTAMP_LENGTH 30
 
 
 static bool _daemonise = false;
 static bool _log2file = false;
-static int _log_level = LOG_ERR;
+static int _log_level = -1;
 static char *_log_filename = NULL;
-static bool _cfg_log2file;
-static int _cfg_log_level;
-
-static char *_loq_display_message = NULL;
 //static char _log_filename[256];
 
-void setLoggingPrms(int level , bool deamonized, const char* log_file, const char *error_messages)
+void setLoggingPrms(int level , bool deamonized, char* log_file)
 {
 	_log_level = level;
   _daemonise = deamonized;
-  _loq_display_message = error_messages;
-
-  _cfg_log_level = _log_level;
-  _cfg_log2file = _log2file;
   
   if (log_file == NULL || strlen(log_file) <= 0) {
     _log2file = false;
@@ -80,44 +63,6 @@ int getLogLevel()
   return _log_level;
 }
 
-
-void startInlineDebug()
-{
-  _log_level = LOG_DEBUG;
-  _log2file = true;
-  if (_log_filename == NULL)
-    _log_filename = DEFAULT_LOG_FILE;
-}
-
-void stopInlineDebug()
-{
-  _log_level = _cfg_log_level;
-  _log2file = _cfg_log2file;
-}
-
-char *getInlineLogFName()
-{
-  return _log_filename;
-}
-
-
-
-bool islogFileReady()
-{
-  if (_log_filename != NULL) {   
-    struct stat st;
-    stat(_log_filename, &st);
-    if ( st.st_size > 0)
-      return true;
-  } 
-  return false;
-}
-
-void cleanInlineDebug() {
-  if (_log_filename != NULL) {
-    fclose(fopen(_log_filename, "w"));
-  }
-}
 
 /*
 * This function reports the error and
@@ -207,6 +152,15 @@ void timestamp(char* time_string)
     strftime(time_string, TIMESTAMP_LENGTH, "%b-%d-%y %H:%M:%S %p ", tmptr);
 }
 
+void trimwhitespace(char *str)
+{
+  char *end;
+  end = str + strlen(str) - 1;
+  while(end > str && isspace(*end)) end--;
+  
+  *(end+1) = 0;
+}
+
 //Move existing pointer
 char *cleanwhitespace(char *str)
 {
@@ -231,7 +185,6 @@ char *cleanwhitespace(char *str)
 // Return new pointer
 char *stripwhitespace(char *str)
 {
-  // Should probably just call Trim and Chop functions.
   char *end;
   char *start = str;
 
@@ -249,33 +202,6 @@ char *stripwhitespace(char *str)
   *(end+1) = 0;
 
   return start;
-}
-
-// Trim whispace (return new pointer) leave trailing whitespace
-char *trimwhitespace(char *str)
-{
-  char *start = str;
-
-  // Trim leading space
-  while(isspace(*start)) start++;
-
-  if(*start == 0)  // All spaces?
-    return start;
-
-  return start;
-}
-
-
-char *chopwhitespace(char *str)
-{
-  char *end;
-  end = str + strlen(str) - 1;
-  while(end > str && isspace(*end)) end--;
-  
-  // Write new null terminator
-  *(end+1) = 0;
-
-  return str;
 }
 
 
@@ -331,30 +257,24 @@ void test(int msg_level, char *msg)
   }
 }
 
-
 void logMessage(int msg_level, char *format, ...)
 {
-  // Simply return ASAP.
-  if (msg_level > _log_level) {
-    return;
-  }
-
-  char buffer[1024];
+  char buffer[512];
   va_list args;
   va_start(args, format);
   strncpy(buffer, "         ", 8);
-  //vsprintf (&buffer[8], format, args);
-  vsnprintf (&buffer[8], 1015, format, args);
+  vsnprintf (&buffer[8], 500, format, args);
   va_end(args);
   
   //test(msg_level, buffer);
   //fprintf (stderr, buffer);
 
-  // Logging has not been setup yet, so STD error & syslog
   if (_log_level == -1) {
     fprintf (stderr, buffer);
     syslog (msg_level, "%s", &buffer[8]);
     closelog ();
+  } else if (msg_level > _log_level) {
+    return;
   }
   
   if (_daemonise == TRUE)
@@ -367,20 +287,21 @@ void logMessage(int msg_level, char *format, ...)
     //return;
   }
   
-  int len;
-  char *strLevel = elevel2text(msg_level);
-  strncpy(buffer, strLevel, strlen(strLevel));
-  len = strlen(buffer); 
-  if ( buffer[len-1] != '\n') {
-    strcat(buffer, "\n");
-  }
+  //if (_log2file == TRUE && _log_filename != NULL) {
+    int len;
+    char *strLevel = elevel2text(msg_level);
 
-  // Sent the log to the UI if configured.
-  if (msg_level <= LOG_WARNING && _loq_display_message != NULL) {
-    snprintf(_loq_display_message, 127, buffer);
-  } 
+    strncpy(buffer, strLevel, strlen(strLevel));
+    
+    len = strlen(buffer);
+    
+    //printf( " '%s' last chrs '%d''%d'\n", buffer, buffer[len-1],buffer[len]);
+    
+    if ( buffer[len-1] != '\n') {
+      strcat(buffer, "\n");
+    } 
 
-  if (_log2file == TRUE && _log_filename != NULL) {   
+ if (_log2file == TRUE && _log_filename != NULL) {   
     char time[TIMESTAMP_LENGTH];
     int fp = open(_log_filename, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     if (fp != -1) {
@@ -400,16 +321,7 @@ void logMessage(int msg_level, char *format, ...)
     if (msg_level == LOG_ERR) {
       fprintf(stderr, "%s", buffer);
     } else {
-#ifndef AD_DEBUG
       printf("%s", buffer);
-#else
-      struct timespec tspec;
-      struct tm localtm;
-      clock_gettime(CLOCK_REALTIME, &tspec);
-      char timeStr[TIMESTAMP_LENGTH];
-      strftime(timeStr, sizeof(timeStr), "%H:%M:%S", localtime_r(&tspec.tv_sec, &localtm));
-      printf("%s.%03ld %s", timeStr, tspec.tv_nsec / 1000000L, buffer);
-#endif
     }
   }
 }
@@ -433,8 +345,8 @@ void daemonise (char *pidFile, void (*main_function) (void))
   int rc = flock (pid_file, LOCK_EX | LOCK_NB);
   if (rc)
   {
-    //if (EWOULDBLOCK == errno)
-    //; // another instance is running
+    if (EWOULDBLOCK == errno)
+    ; // another instance is running
     //fputs ("\nAnother instance is already running\n", stderr);
     logMessage(LOG_ERR,"\nAnother instance is already running\n");
     exit (EXIT_FAILURE);
@@ -553,71 +465,49 @@ char* stristr(const char* haystack, const char* needle) {
   } while (*haystack++);
   return 0;
 }
-
-int ascii(char *destination, char *source) {
-  unsigned int i;
-  for(i = 0; i < strlen(source); i++) {
-    if ( source[i] >= 0 && source[i] < 128 )
-      destination[i] = source[i];
-    else
-      destination[i] = ' ';
-
-    if ( source[i]==126 ) {
-      destination[i-1] = '<';
-      destination[i] = '>';
-    } 
-
-  }
-  destination[i] = '\0';
-  return i;
-}
-
-char *prittyString(char *str)
-{
-  char *ptr = str;
-  char *end;
-  bool lastspace=true;
-
-  end = str + strlen(str) - 1;
-  while(end >= ptr){
-    //printf("%d %s ", *ptr, ptr);
-    if (lastspace && *ptr > 96 && *ptr < 123) {
-      *ptr = *ptr - 32;
-      lastspace=false;
-      //printf("to upper\n");
-    } else if (lastspace == false && *ptr > 54 && *ptr < 91) {
-      *ptr = *ptr + 32;
-      lastspace=false;
-      //printf("to lower\n");
-    } else if (*ptr == 32) {
-      lastspace=true;
-      //printf("space\n");
-    } else {
-      lastspace=false;
-      //printf("leave\n");
-    }
-    ptr++;
-  }
-
-  //printf("-- %s --\n", str);
-
-  return str;
-}
-
 /*
-static FILE *_packetLogFile = NULL;
-
-void writePacketLog(char *buffer) {
-  if (_packetLogFile == NULL)
-    _packetLogFile = fopen("/tmp/RS485.log", "a");
-
-  if (_packetLogFile != NULL) {
-    fputs(buffer, _packetLogFile);
-  } 
-}
-void closePacketLog() {
-  fclose(_packetLogFile);
+double timval_diff(struct timeval x , struct timeval y)
+{
+	double x_ms , y_ms , diff;
+	
+	x_ms = (double)x.tv_sec*1000000 + (double)x.tv_usec;
+	y_ms = (double)y.tv_sec*1000000 + (double)y.tv_usec;
+	
+	diff = (double)y_ms - (double)x_ms;
+	
+	return diff;
 }
 */
+double timval_diff(struct timeval time1, struct timeval time2) {
+/* this function returns the difference between 2 struct timevals.  time2
+should be the later time */
+  double result;
+  
+  result = time2.tv_sec-time1.tv_sec;
+  result += (double)(time2.tv_usec-time1.tv_usec)/1000000;
+  return(result);
 
+} /* timediff(time1,time2) */
 
+int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y)
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}

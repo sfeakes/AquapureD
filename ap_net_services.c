@@ -26,6 +26,7 @@
 
 #include "aquapured.h"
 #include "SWG_device.h"
+#include "GPIO_device.h"
 #include "config.h"
 
 //#include "aq_programmer.h"
@@ -50,6 +51,8 @@ static mqttstatus _mqtt_status = mqttstopped;
 
 void mqtt_broadcast_aquapurestate(struct mg_connection *nc);
 void ws_broadcast_aquapurestate(struct mg_connection *nc);
+void mqtt_broadcast_gpiostate(struct mg_connection *nc);
+void ws_broadcast_gpiostate(struct mg_connection *nc);
 void start_mqtt(struct mg_mgr *mgr);
 
 static sig_atomic_t s_signal_received = 0;
@@ -106,7 +109,7 @@ void send_mqtt_int_msg(struct mg_connection *nc, char *dev_name, int value) {
   static char msg[10];
 
   sprintf(msg, "%d", value);
-  sprintf(mqtt_pub_topic, "%s/%s",  _apconfig_.mqtt_aq_topic, dev_name);
+  sprintf(mqtt_pub_topic, "%s/%s",  _apconfig_.mqtt_topic, dev_name);
   send_mqtt(nc, mqtt_pub_topic, msg);
 }
 
@@ -115,7 +118,7 @@ void send_mqtt_float_msg(struct mg_connection *nc, char *dev_name, float value) 
   static char msg[10];
 
   sprintf(msg, "%0.2f", value);
-  sprintf(mqtt_pub_topic, "%s/%s",  _apconfig_.mqtt_aq_topic, dev_name);
+  sprintf(mqtt_pub_topic, "%s/%s",  _apconfig_.mqtt_topic, dev_name);
   send_mqtt(nc, mqtt_pub_topic, msg);
 }
 
@@ -139,11 +142,17 @@ bool broadcast_aquapurestate(struct mg_connection *nc) {
   
 
   for (c = mg_next(nc->mgr, NULL); c != NULL; c = mg_next(nc->mgr, c)) {
-    if (is_websocket(c))
-      ws_broadcast_aquapurestate(c);
-    else if (is_mqtt(c))
-      mqtt_broadcast_aquapurestate(c);
-
+    if (is_websocket(c)) {
+      if (_apdata_.changed)
+        ws_broadcast_aquapurestate(c);
+      if (_gpiodata_.changed)
+        ws_broadcast_gpiostate(c);
+    } else if (is_mqtt(c)) {
+      if (_apdata_.changed)
+        mqtt_broadcast_aquapurestate(c);
+      if (_gpiodata_.changed)
+        mqtt_broadcast_gpiostate(c);
+    }
     //printf("Connection is WS %d | MQTT %d\n",is_websocket(c),is_mqtt(c));
   }
 
@@ -173,7 +182,17 @@ void ws_broadcast_aquapurestate(struct mg_connection *nc) {
   char data[JSON_STATUS_SIZE];
   //int size = build_aquapure_status_JSON(_ar_prms, data, JSON_STATUS_SIZE);
 
-  build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
+  build_swg_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
+
+  ws_send(nc, data);
+}
+
+void ws_broadcast_gpiostate(struct mg_connection *nc) {
+  char data[JSON_STATUS_SIZE];
+  //int size = build_aquapure_status_JSON(_ar_prms, data, JSON_STATUS_SIZE);
+
+  //build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
+  build_gpio_device_JSON(&_gpiodata_, data, JSON_STATUS_SIZE, false);
 
   ws_send(nc, data);
 }
@@ -202,6 +221,20 @@ void mqtt_broadcast_aquapurestate(struct mg_connection *nc) {
   }
 */
  
+}
+
+void mqtt_broadcast_gpiostate(struct mg_connection *nc) {
+  int i;
+  char topic[20];
+
+  for (i=0; i < _gpiodata_.num_devices; i++) {
+    //if (_gpiodata_.devices[i].changed) {
+      sprintf(topic, "%s%d",GPIO_TOPIC,_gpiodata_.devices[i].pin);
+      //send_mqtt_int_msg(nc, topic, (digitalRead(_gpiodata_.devices[i].pin)==_gpiodata_.devices[i].on_state?MQTT_ON:MQTT_OFF) );
+      send_mqtt_int_msg(nc, topic, is_gpiodevice_on(&_gpiodata_.devices[i])?MQTT_ON:MQTT_OFF);
+
+    //}
+  }
 }
 /*
 void set_swg_percent(char *sval, bool f2c) {
@@ -315,7 +348,7 @@ void action_mqtt_message(struct mg_connection *nc, struct mg_mqtt_message *msg) 
   // aquapure/SWG      // post only
   // aquapure/SWG/PPM        // post only
 
-  int pt = strlen( _apconfig_.mqtt_aq_topic) + 1;
+  int pt = strlen( _apconfig_.mqtt_topic) + 1;
 
   if (strncmp(&msg->topic.p[pt], "SWG/Percent/set", 15) == 0) {
     set_swg_req_percent(tmp, false);
@@ -334,6 +367,11 @@ void action_mqtt_message(struct mg_connection *nc, struct mg_mqtt_message *msg) 
     //logMessage(LOG_NOTICE, "MQTT Trying to set no settable value %.*s to %.*s\n", msg->topic.len, msg->topic.p, msg->payload.len, msg->payload.p);
     //broadcast_aquapurestate(nc);
     //_apdata_.changed = true;
+  } else if (strncmp(&msg->topic.p[pt], GPIO_TOPIC, 5) == 0 &&
+             ( strncmp(&msg->topic.p[pt]+7, "/set", 4) == 0 || strncmp(&msg->topic.p[pt]+6, "/set", 3) == 0)) {
+     action_gpio_request(&msg->topic.p[pt], tmp);
+  } else {
+    logMessage(LOG_DEBUG, "MQTT: Didn't understand topic %.*s %.*s\n", msg->topic.len, msg->topic.p, msg->payload.len, msg->payload.p);
   }
 }
 
@@ -357,13 +395,13 @@ void action_web_request(struct mg_connection *nc, struct http_message *http_msg)
 
     if (strcmp(command, "status") == 0) {
       char data[JSON_STATUS_SIZE];
-      int size = build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
+      int size = build_device_JSON(&_apdata_, &_gpiodata_, data, JSON_STATUS_SIZE, false);
       mg_send_head(nc, 200, size, "Content-Type: application/json");
       mg_send(nc, data, size);
       return;
     } else if (strcmp(command, "homebridge") == 0) {
       char data[JSON_STATUS_SIZE];
-      int size = build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, true);
+      int size = build_device_JSON(&_apdata_, &_gpiodata_, data, JSON_STATUS_SIZE, true);
       mg_send_head(nc, 200, size, "Content-Type: application/json");
       mg_send(nc, data, size);
       return;
@@ -396,6 +434,10 @@ void action_web_request(struct mg_connection *nc, struct http_message *http_msg)
       mg_send_head(nc, 200, strlen(GET_RTN_OK), "Content-Type: text/plain");
       mg_send(nc, GET_RTN_OK, strlen(GET_RTN_OK));
       return;
+    } else if (strncmp(command, GPIO_TOPIC, 4) == 0) {
+      char value[20];
+      mg_get_http_var(&http_msg->query_string, "value", value, sizeof(value));
+      action_gpio_request(command, value);
     }
     
     mg_send_head(nc, 200, strlen(GET_RTN_UNKNOWN), "Content-Type: text/plain");
@@ -429,7 +471,7 @@ void action_websocket_request(struct mg_connection *nc, struct websocket_message
   if (strcmp(request.first.value, "GET_DEVICES") == 0) {
       //char message[JSON_LABEL_SIZE*10];
       //build_device_JSON(_aqualink_data, _aqualink_config->light_programming_button_pool, _aqualink_config->light_programming_button_spa, message, JSON_LABEL_SIZE*10, false);
-      build_device_JSON(&_apdata_, data, JSON_STATUS_SIZE, false);
+      build_device_JSON(&_apdata_, &_gpiodata_, data, JSON_STATUS_SIZE, false);
       //logMessage(LOG_DEBUG, "-->%s<--", data);
       ws_send(nc, data);
   } else if (strcmp(request.first.key, "command") == 0) {
@@ -447,6 +489,8 @@ void action_websocket_request(struct mg_connection *nc, struct websocket_message
         set_swg_boost(true);
       else
         set_swg_boost(false);
+    } else if (strncmp(request.first.value, GPIO_TOPIC, 4) == 0) {
+      action_gpio_request(request.first.value, request.second.value);
     }
   } else if (strcmp(request.first.key, "parameter") == 0) {
     if (strcmp(request.first.value, SWG_TOPIC) == 0) { // Should delete this soon
@@ -534,8 +578,8 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
       _mqtt_status = mqttstopped;
     }
 
-    snprintf(aq_topic, 29, "%s/#",  _apconfig_.mqtt_aq_topic);
-    if ( _apconfig_.mqtt_aq_topic != NULL) {
+    snprintf(aq_topic, 29, "%s/#",  _apconfig_.mqtt_topic);
+    if ( _apconfig_.mqtt_topic != NULL) {
       topics[0].topic = aq_topic;
       topics[0].qos = qos;
       mg_mqtt_subscribe(nc, topics, 1, 42);
@@ -559,7 +603,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
     }
 
     // NSF Need to change strlen to a global so it's not executed every time we check a topic
-    if ( _apconfig_.mqtt_aq_topic != NULL && strncmp(mqtt_msg->topic.p,  _apconfig_.mqtt_aq_topic, strlen( _apconfig_.mqtt_aq_topic)) == 0) {
+    if ( _apconfig_.mqtt_topic != NULL && strncmp(mqtt_msg->topic.p,  _apconfig_.mqtt_topic, strlen( _apconfig_.mqtt_topic)) == 0) {
       action_mqtt_message(nc, mqtt_msg);
     }
 
@@ -583,7 +627,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 void start_mqtt(struct mg_mgr *mgr) {
 
   
-  if ( _apconfig_.mqtt_server == NULL ||  _apconfig_.mqtt_aq_topic == NULL ) {
+  if ( _apconfig_.mqtt_server == NULL ||  _apconfig_.mqtt_topic == NULL ) {
     if (_mqtt_status != mqttdisabled)
       logMessage(LOG_NOTICE, "Disabling MQTT client, no config!\n",  _apconfig_.mqtt_server);
 

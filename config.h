@@ -28,22 +28,37 @@ const extern struct apconfig _apconfig_;
 
 struct apconfig
 {
-  char *version;
-  char *name;
-  char *serial_port;
+  char name[20];
+  char web_directory[512];
+  char log_file[512];
+  char serial_port[50];
+  char socket_port[6];
+
+  char mqtt_server[20];
+  char mqtt_user[50];
+  char mqtt_passwd[50];
+  char mqtt_topic[50];
+  char mqtt_dz_sub_topic[50];
+  char mqtt_dz_pub_topic[50];
+  char mqtt_ID[MQTT_ID_LEN];
+
+  //char *version;
+  //char *name;
+  //char *serial_port;
   unsigned int log_level;
-  char *socket_port;
-  char *web_directory;
+  //char *socket_port;
+  //char *web_directory;
   unsigned char device_id;
   bool deamonize;
-  char *log_file;
+  
   //char *mqtt_dz_sub_topic;
   //char *mqtt_dz_pub_topic;
-  char *mqtt_aq_topic;
-  char *mqtt_server;
-  char *mqtt_user;
-  char *mqtt_passwd;
-  char mqtt_ID[MQTT_ID_LEN+1];
+  //char *mqtt_aq_topic;
+  //char *mqtt_server;
+  //char *mqtt_user;
+  //char *mqtt_passwd;
+  //char mqtt_ID[MQTT_ID_LEN+1];
+  char last_display_message[AQ_MSGLONGLEN+1];
   //int dzidx_air_temp;
   //int dzidx_pool_water_temp;
   //int dzidx_spa_water_temp;

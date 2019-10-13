@@ -61,6 +61,7 @@ char *jsontok(jsontoken *jt);
 int build_device_JSON(const struct apdata *aqdata, const struct gpiodata *gpiodata, char* buffer, int size, bool homekit);
 int build_swg_device_JSON(const struct apdata *aqdata, char* buffer, int size, bool homekit);
 int build_gpio_device_JSON(const struct gpiodata *gpiodata, char* buffer, int size, bool homekit);
+int build_dz_mqtt_status_message_JSON(char* buffer, int size, int idx, int nvalue, char *svalue);
 //int build_aquapure_status_JSON(struct apdata *aqdata, char* buffer, int size);
 
 #endif /* JSON_MESSAGES_H_ */

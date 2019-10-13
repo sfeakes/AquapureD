@@ -8,9 +8,9 @@ LIBS := -lpthread -lm
 
 # debug of not
 #DBG = -g -O0 -fsanitize=address -static-libasan
-#DBG = -g
+DBG = -g
 #DBG = -D TESTING
-DBG =
+#DBG =
 
 # define any compile-time flags
 #CFLAGS = -Wall -g -lpthread -lwiringPi -lm -I. 
@@ -30,12 +30,20 @@ INCLUDES = -I./ -I./GPIO_Pi -I./minIni
 # define the C source files
 #SRCS = aqualinkd.c utils.c config.c aq_serial.c init_buttons.c aq_programmer.c net_services.c json_messages.c mongoose.c
 
+.SUFFIXES: .o_test
+
 #SL_SRC = serial_logger.c aq_serial.c utils.c
 #AL_SRC = aquapure_logger.c aq_serial.c utils.c
-SRCS = aquapure.c ap_net_services.c SWG_device.c aq_serial.c utils.c mongoose.c json_messages.c config.c packetLogger.c GPIO_device.c ./GPIO_Pi/GPIO_Pi.c ./minIni/minIni.c
+SRCS = aquapure.c ap_net_services.c SWG_device.c aq_serial.c utils.c mongoose.c json_messages.c config.c \
+       packetLogger.c GPIO_device.c ./GPIO_Pi/GPIO_Pi.c ./minIni/minIni.c
 #SRCS = aq_serial.c utils.c mongoose.c json_messages.c config.c aquapured/ap_net_services.c aquapured/ap_config.c aquapured/aquapure.c
+TEST_D_SRC = aquapure.c aq_serial.c
 
 OBJS = $(SRCS:.c=.o)
+
+TEST_SRC := $(filter-out $(TEST_D_SRC), $(SRCS))
+TEST_OBJS = $(TEST_SRC:.c=.o)
+TEST_D_OBJS = $(TEST_D_SRC:.c=.o_test)
 
 #SL_OBJS = $(SL_SRC:.c=.o)
 #AL_OBJS = $(AL_SRC:.c=.o)
@@ -43,6 +51,7 @@ OBJS = $(SRCS:.c=.o)
 
 # define the executable file
 MAIN = ./release/aquapured
+TEST = ./release/aquapured_test
 
 #SLOG = ./release/serial_logger
 #AQUAPURELOG = ./release/aquapure_logger
@@ -54,6 +63,8 @@ all:    $(MAIN)
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
 
+test: $(TEST_OBJS) $(TEST_D_OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(TEST) $(TEST_OBJS) $(TEST_D_OBJS) $(LFLAGS) $(LIBS)
 
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of
@@ -62,8 +73,11 @@ $(MAIN): $(OBJS)
 .c.o:
 	$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
+.c.o_test:
+	$(CC) $(CFLAGS) $(INCLUDES) -D TESTING -c $<  -o $@
+
 clean:
-	$(RM) *.o *~ $(MAIN) $(MAIN_U)
+	$(RM) *.o *~ *.o_test $(MAIN) $(MAIN_U) $(TEST)
 
 depend: $(SRCS)
 	makedepend $(INCLUDES) $^

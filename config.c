@@ -213,6 +213,10 @@ void readCfg (char *cfgFile)
   ini_gets("AQUACONTROLD", "MQTT_PASSWD", NULL, _apconfig_.mqtt_passwd, sizearray(_apconfig_.mqtt_passwd), cfgFile);
   ini_gets("AQUACONTROLD", "MQTT_TOPIC", DEFAULT_MQTT_AQ_TP,_apconfig_.mqtt_topic, sizearray(_apconfig_.mqtt_topic), cfgFile);
 
+  ini_gets("AQUACONTROLD", "MQTT_DZ_PUB_TOPIC", NULL,_apconfig_.mqtt_dz_pub_topic, sizearray(_apconfig_.mqtt_dz_pub_topic), cfgFile);
+  ini_gets("AQUACONTROLD", "MQTT_DZ_SUB_TOPIC", NULL,_apconfig_.mqtt_dz_sub_topic, sizearray(_apconfig_.mqtt_dz_sub_topic), cfgFile);
+  _apconfig_.dzidx_swg_status_msg = ini_getl("AQUACONTROLD", "DZIDX_SWG_STATUS_ALERT_SENSOR", 0, cfgFile);
+
 
   read_gpio_config(cfgFile);
 

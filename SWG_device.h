@@ -8,6 +8,7 @@
 const extern struct apdata _apdata_;
 #endif
 
+#define DISMSGLEN 30
 
 // connected, receiving ACK
 // status, status from RS485  (on & generating are same status)
@@ -27,6 +28,7 @@ struct apdata
   bool connected;
   char *cache_file;
   bool changed;
+  char display_message[DISMSGLEN+1]; // Need to move this to a generic data, not device data
 };
 
 
@@ -39,8 +41,10 @@ void set_swg_req_percent(char *sval, bool f2c);
 void set_swg_percent(int percent);
 void set_swg_boost(bool val);
 void set_swg_on(bool val);
+bool action_boost_request(char *value);
 
 void write_swg_cache();
 void read_swg_cache();
+void set_display_message(char *msg);
 
 #endif

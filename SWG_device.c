@@ -3,12 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <string.h>
 
 
 #include "SWG_device.h"
 #include "utils.h"
 #include "aq_serial.h"
 #include "aqualink.h"
+#include "aq_mqtt.h"
 
 #define CACHE_FILE "/tmp/aquapure.cache"
 #define CMD_NONE 0xFF
@@ -29,7 +31,11 @@ double timval_diff(struct timeval time1, struct timeval time2) {
   return(result);
 
 }
-
+void set_display_message(char *msg)
+{
+  snprintf(_apdata_.display_message, DISMSGLEN, msg);
+}
+// END --- NSF MOVE THIS TO UTILS OR SOMEWHERE
 
 void debugStatusPrint();
 
@@ -293,6 +299,26 @@ void set_swg_on(bool val) {
   }
 
   _apdata_.changed = true;
+}
+
+bool action_boost_request(char *value)
+{
+
+  if (value != NULL) {
+   if (strcmp(value, "on") == 0 ) {
+    set_swg_boost(true);
+   } else if (strcmp(value, "off") == 0 ) {
+    set_swg_boost(false);
+   } else if ( atoi(value) == MQTT_ON ) {
+    set_swg_boost(true);
+   } else if ( atoi(value) == MQTT_OFF ) {
+    set_swg_boost(false);
+   }
+  }
+      
+  // Force update even if value wasn't changed to re-set UI's.
+  _apdata_.changed = true;
+  return true;
 }
 
 

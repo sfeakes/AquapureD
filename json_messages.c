@@ -83,19 +83,20 @@ const char* SWGstatus2test(unsigned char status)
   return "Unknown";
 }
 
+/*
 const char* getStatus(const struct aqualinkdata *aqdata)
 {
   if (aqdata->active_thread.thread_id != 0) {
     return JSON_PROGRAMMING;
   }
  
-  if (aqdata->last_message != NULL && stristr(aqdata->last_message, "SERVICE") != NULL ) {
+  if (aqdata->display_message != NULL && stristr(aqdata->display_message, "SERVICE") != NULL ) {
     return JSON_SERVICE;
   }
 
   return JSON_READY; 
 }
-
+*/
 /*
 int build_mqtt_status_JSON(char* buffer, int size, int idx, int nvalue, float tvalue)
 {
@@ -197,7 +198,7 @@ int _build_swg_device_JSON(const struct apdata *aqdata, char* buffer, int size, 
 
   length += sprintf(buffer+length, "{\"type\": \"switch\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\" }",
                                    SWG_BOOST_TOPIC,
-                                   "Salt Water Generator Boost",
+                                   "Boost pool",
                                    aqdata->boost == true?JSON_ON:JSON_OFF,
                                    aqdata->boost == true?JSON_ON:JSON_OFF);
 
@@ -213,6 +214,7 @@ int build_gpio_device_JSON(const struct gpiodata *gpiodata, char* buffer, int si
   length += sprintf(buffer+length, "{\"type\": \"devices\"");
   length += sprintf(buffer+length, ",\"version\":\"%s\"",AQUAPURED_VERSION );
   length += sprintf(buffer+length, ",\"name\":\"%s\"",AQUAPURED_NAME );
+  length += sprintf(buffer+length, ",\"status\":\"%s\"",_apdata_.display_message );
   length += sprintf(buffer+length,  ", \"devices\": [");
 
   length += _build_gpio_device_JSON(gpiodata, buffer+length, size-length, homekit);
@@ -357,6 +359,20 @@ int build_device_JSON_OLD(const struct apdata *aqdata, char* buffer, int size, b
   return strlen(buffer);
 
 }
+
+
+int build_dz_mqtt_status_message_JSON(char* buffer, int size, int idx, int nvalue, char *svalue)
+{
+  memset(&buffer[0], 0, size);
+  int length = 0;
+  //json.htm?type=command&param=udevice&idx=IDX&nvalue=LEVEL&svalue=TEXT
+
+  length = sprintf(buffer, "{\"idx\":%d,\"nvalue\":%d,\"svalue\":\"%s\"}", idx, nvalue, svalue);
+
+  buffer[length] = '\0';
+  return strlen(buffer);
+}
+
 
 /*
 int build_aquapure_status_JSON(struct apdata *aqdata, char* buffer, int size)

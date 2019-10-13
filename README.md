@@ -2,23 +2,44 @@
 linux daemon to control Aquapure SWG without the need for a pool control panel.
 
 ## Note
-This is an old fork of AqualinkD, simply to test at the moment, not ment to be consumable.
+This is still in beta mode.
 
-To be considered ALPHA release at present.
+After downloading
+Please edit `./release/aquapured.conf` and change configuration to your setup.
 
-run
-```
- sudo ./release/aquapured -d -c ./release/aquapured.conf
- ```
+To run
+```sudo ./release/aquapured -d -c ./release/aquapured.conf```
 
- You should see bunch of messages then
- ```
- Debug:  Sent        Probe  | HEX: 0x10|0x02|0x50|0x00|0x62|0x10|0x03|
- ```
+### Currently supported
+SWG using Jandy protocol (this is most SWG, including Pentair).
+MQTT, Web API, Web Sockets and Basic Web UI
+Use of GPIO to control relays to turn on/off other pool equiptment.
+Homekit integration with homekit-aqualinkd
 
- If you see an ACK after the probe, then we are in buisness.  If not, and the RS485 port is setup correctly, then not much can be done.
- ```
-  To 0x50 of type    Probe | HEX: 0x10|0x02|0x50|0x00|0x62|0x10|0x03|
-From 0x50 of type      Ack | HEX: 0x10|0x02|0x00|0x01|0x00|0x00|0x13|0x10|0x03|
+### Web API
+http://ip/?command=status                   (return JSON status)
+http://ip/?command=swg_percent&value=50     (Set SWG Percent to 50)
+http://ip/?command=swg&value=on             (Set SWG on or off)
+http://ip/?command=GPIO_13&value=on          (Set GPIO 13 on or off)
 
- ```
+### MQTT
+#### Status posted.  0=off 1=on,
+aquapured/SWG 0
+aquapured/SWG/Percent 30
+aquapured/SWG/fullstatus 254
+aquapured/SWG/PPM 3100
+aquapured/SWG/enabled 0
+aquapured/SWG/Boost 0
+aquapured/GPIO_13 0
+aquapured/GPIO_19 0
+aquapured/GPIO_18 0
+aquapured/GPIO_16 0
+
+#### Make requests over MQTT
+Add /set to topic and messages are 0=off, 1=on or number between 1 and 100 for percent. 
+aquapured/SWG/set
+aquapured/SWG/Percent/set
+aquapured/SWG/Boost/set
+aquapured/GPIO_13/set
+
+

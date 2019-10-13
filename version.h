@@ -1,4 +1,4 @@
 
 
 #define AQUAPURED_NAME "AquaPure Daemon"
-#define AQUAPURED_VERSION "0.5"
+#define AQUAPURED_VERSION "0.6"

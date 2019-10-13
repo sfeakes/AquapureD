@@ -85,7 +85,7 @@ static void signal_handler(int sig_num) {
   s_signal_received = sig_num;
 }
 
-void send_mqtt(struct mg_connection *nc, char *toppic, char *message) {
+void send_mqtt(struct mg_connection *nc, const char *toppic, char *message) {
   static uint16_t msg_id = 0;
 
   if (toppic == NULL)
@@ -121,6 +121,19 @@ void send_mqtt_float_msg(struct mg_connection *nc, char *dev_name, float value) 
   sprintf(mqtt_pub_topic, "%s/%s",  _apconfig_.mqtt_topic, dev_name);
   send_mqtt(nc, mqtt_pub_topic, msg);
 }
+
+void send_domoticz_mqtt_status_message(struct mg_connection *nc, int idx, int value, char *svalue) {
+  if (idx <= 0)
+    return;
+
+  char mqtt_msg[JSON_MQTT_MSG_SIZE];
+  build_dz_mqtt_status_message_JSON(mqtt_msg, JSON_MQTT_MSG_SIZE, idx, value, svalue);
+
+  send_mqtt(nc, _apconfig_.mqtt_dz_pub_topic, mqtt_msg);
+}
+
+
+
 
 void check_net_services(struct mg_mgr *mgr) {
 
@@ -209,10 +222,79 @@ void mqtt_broadcast_aquapurestate(struct mg_connection *nc) {
     send_mqtt_float_msg(nc, SWG_PPM_F_TOPIC, roundf(degFtoC(_apdata_.PPM)));
   }
 
-  send_mqtt_int_msg(nc, SWG_TOPIC, ((_apdata_.connected && (_apdata_.Percent > 0))?2:0) );
+  //send_mqtt_int_msg(nc, SWG_TOPIC, ((_apdata_.connected && (_apdata_.Percent > 0))?2:0) );
   send_mqtt_int_msg(nc, SWG_ENABELED_TOPIC, (_apdata_.connected?2:0));
   send_mqtt_int_msg(nc, SWG_EXTENDED_TOPIC, (int)_apdata_.status);
   send_mqtt_int_msg(nc, SWG_BOOST_TOPIC, _apdata_.boost);
+
+  //if (_apconfig_.dzidx_swg_status > 0 && strlen(_apconfig_.mqtt_dz_pub_topic) > 0){
+  switch (_apdata_.status) {
+      // Level = (0=gray, 1=green, 2=yellow, 3=orange, 4=red)
+      case SWG_STATUS_ON:
+        set_display_message( "AquaPure ON");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 1, "GENERATING CHLORINE");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_ON);
+        break;
+      case SWG_STATUS_NO_FLOW:   
+        set_display_message( "AquaPure No Flow");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 2, "NO FLOW");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_OFF);
+        break;
+      case SWG_STATUS_LOW_SALT:    
+        set_display_message( "AquaPure Low Salt");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 2, "LOW SALT");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_ON);
+        break;
+      case SWG_STATUS_HI_SALT:       
+        set_display_message( "AquaPure High Salt");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 3, "HIGH SALT");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_ON);
+        break;
+      case SWG_STATUS_HIGH_CURRENT:      
+        set_display_message( "AquaPure High Current");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 4, "HIGH CURRENT");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_ON);
+        break;
+      case SWG_STATUS_TURNING_OFF:     
+        set_display_message( "AquaPure Turning Off");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 0, "TURNING OFF");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_OFF);
+        break;
+      case SWG_STATUS_CLEAN_CELL:     
+        set_display_message( "AquaPure Clean Cell");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 2, "CLEAN CELL");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_ON);
+        break;
+      case SWG_STATUS_LOW_VOLTS:       
+        set_display_message( "AquaPure Low Voltage");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 3, "LOW VOLTAGE");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_ON);
+        break;
+      case SWG_STATUS_LOW_TEMP:      
+        set_display_message( "AquaPure Water Temp Low");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 2, "WATER TEMP LOW");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_OFF);
+        break;
+      case SWG_STATUS_CHECK_PCB:       
+        set_display_message( "AquaPure Check PCB");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 4, "CHECK PCB");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_OFF);
+        break;
+      case SWG_STATUS_OFF: // THIS IS OUR OFF STATUS, NOT AQUAPURE      
+        set_display_message( "AquaPure OFF");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 0, "OFF");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_OFF);
+        break;
+      case SWG_STATUS_OFFLINE:
+        set_display_message( "AquaPure OFFLINE");
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 4, "OFFLINE");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_OFF);
+        break;
+      default:
+        send_domoticz_mqtt_status_message(nc, _apconfig_.dzidx_swg_status_msg, 4, "Unknown");
+        send_mqtt_int_msg(nc, SWG_TOPIC, SWG_ON);
+        break;
+  }
 /*
   if (_apdata_.status != _apdata_.last_status_published) {
 
@@ -470,25 +552,21 @@ void action_websocket_request(struct mg_connection *nc, struct websocket_message
   
   if (strcmp(request.first.value, "GET_DEVICES") == 0) {
       //char message[JSON_LABEL_SIZE*10];
-      //build_device_JSON(_aqualink_data, _aqualink_config->light_programming_button_pool, _aqualink_config->light_programming_button_spa, message, JSON_LABEL_SIZE*10, false);
+      //build_device_JSON(_aqualink_data, _apconfig_.light_programming_button_pool, _apconfig_.light_programming_button_spa, message, JSON_LABEL_SIZE*10, false);
       build_device_JSON(&_apdata_, &_gpiodata_, data, JSON_STATUS_SIZE, false);
       //logMessage(LOG_DEBUG, "-->%s<--", data);
       ws_send(nc, data);
   } else if (strcmp(request.first.key, "command") == 0) {
-    if (strcmp(request.first.value, SWG_TOPIC) == 0) {
+    if (strcmp(request.first.value, SWG_BOOST_TOPIC) == 0) {
+printf("***** BOOST ****\n");
+      action_boost_request(request.second.value);
+    } else if (strcmp(request.first.value, SWG_TOPIC) == 0) {
       //printf("Turn SWG on/off NOT IMPLIMENTED YET!\n");
       //_apdata_.changed = true;
       if (strcmp(request.second.value, "on") == 0)
         set_swg_on(true);
       else
         set_swg_on(false);
-    } else if (strcmp(request.first.value, SWG_BOOST_TOPIC) == 0) {
-      //printf("Boost on/off NOT IMPLIMENTED YET!\n");
-      //_apdata_.changed = true;
-      if (strcmp(request.second.value, "on") == 0)
-        set_swg_boost(true);
-      else
-        set_swg_boost(false);
     } else if (strncmp(request.first.value, GPIO_TOPIC, 4) == 0) {
       action_gpio_request(request.first.value, request.second.value);
     }

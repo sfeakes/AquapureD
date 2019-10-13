@@ -42,6 +42,8 @@ struct apconfig
   char mqtt_dz_pub_topic[50];
   char mqtt_ID[MQTT_ID_LEN];
 
+  int dzidx_swg_status_msg;
+
   //char *version;
   //char *name;
   //char *serial_port;
@@ -58,7 +60,7 @@ struct apconfig
   //char *mqtt_user;
   //char *mqtt_passwd;
   //char mqtt_ID[MQTT_ID_LEN+1];
-  char last_display_message[AQ_MSGLONGLEN+1];
+  //char last_display_message[AQ_MSGLONGLEN+1];
   //int dzidx_air_temp;
   //int dzidx_pool_water_temp;
   //int dzidx_spa_water_temp;

@@ -24,26 +24,24 @@ http://ip/?command=swg&value=on             (Set SWG on or off)
 http://ip/?command=GPIO_13&value=on         (Set GPIO 13 on or off)
 ```
 
-### MQTT
+### MQTT status
 ```
-#### Status posted.  0=off 1=on,
-aquapured/SWG 0
-aquapured/SWG/Percent 30
-aquapured/SWG/fullstatus 254
-aquapured/SWG/PPM 3100
-aquapured/SWG/enabled 0
-aquapured/SWG/Boost 0
-aquapured/GPIO_13 0
-aquapured/GPIO_19 0
-aquapured/GPIO_18 0
-aquapured/GPIO_16 0
+#### Status posted.  0=off 1=on, unless otherwise stated
+aquapured/SWG                (0 off, 2 on and generating salt.)
+aquapured/SWG/enabled        (0 off, 2 on but not generating salt - SWG reported no-flow or equiv.)
+aquapured/SWG/Percent        (SWG Generating %, i.e. 50, value between 0 and 101)
+aquapured/SWG/fullstatus     (0 on, 1 no flow, 2 low salt, 4 high salt, 8 clean cell, 9 turning off, 16 high current, 32 low volts, 64 low temp, 128 check PCB, 255 off)
+aquapured/SWG/PPM            ( SWG Parts Per Million i.e. 3100)
+aquapured/SWG/Boost          ( Boost on or off, 1 or 0)
+aquapured/GPIO_13            (GPIO 13 on or off, 1 or 0)
+aquapured/GPIO_XX            (XX = any GPIO you've configured)
 ```
 #### Make requests over MQTT
 ```
 Add /set to topic and messages are 0=off, 1=on or number between 1 and 100 for percent. 
-aquapured/SWG/set
-aquapured/SWG/Percent/set
-aquapured/SWG/Boost/set
-aquapured/GPIO_13/set
+aquapured/SWG/set           (Message is 0 or 1, Not really relivent on many systems, will depend on physical Pump to SWG wiring)
+aquapured/SWG/Percent/set   (Message is number between 0 and 100)
+aquapured/SWG/Boost/set     (Message is 0 or 1)
+aquapured/GPIO_13/set       (Message is 0 or 1)
 ```
 

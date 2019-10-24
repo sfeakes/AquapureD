@@ -28,6 +28,7 @@ typedef enum {
 
 #define DEV_MASTER      0x00
 #define AR_ID           0x50
+#define TRI_ID          0xB0
 
 // PACKET DEFINES Jandy
 #define NUL  0x00

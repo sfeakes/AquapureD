@@ -11,6 +11,7 @@
 #include "aq_serial.h"
 #include "aqualink.h"
 #include "aq_mqtt.h"
+#include "config.h"
 
 #define CACHE_FILE "/tmp/aquapure.cache"
 #define CMD_NONE 0xFF
@@ -48,16 +49,42 @@ void init_swg_device(bool forceConnection) {
   _apdata_.cache_file = CACHE_FILE;
   _apdata_.changed = true;
   _apdata_.connected = false;
+  _apdata_.Ph = TEMP_UNKNOWN;
+  _apdata_.ORP = TEMP_UNKNOWN;
+  _apdata_.ph_setpoint = TEMP_UNKNOWN;
+  _apdata_.acl_setpoint = TEMP_UNKNOWN;
 
   _forceConnection = forceConnection;
   read_swg_cache();
 }
 
+/* Should Alternate between Jandy set % and Tri set (something)
+Jandy send %
+JANDY    AR %  | HEX: |0x10|0x02|0x50|0x11|0x32|0x00|0xa5|0x10|0x03|
+
+Receive
+JANDY   AR PPM | HEX: 0x10|0x02|0x00|0x16|0x28|0x00|0x00|0x00|0x50|0x10|0x03|
+|0x28 = PPM (*100)
+
+TRI Send
+TRI    AR %    | HEX: 0x10|0x02|0xb0|0x11|0x64|0x37|0x10|0x03
+
+TRI Return
+RS485 : |0x10|0x02|0x00|0x16|0x03|0x03|0x02|0x00|0x49|0x41|0x47|0x4a|0x4b|0x10|0x03
+        |0x10|0x02|0x00|0x16|0x03|0x03|0x22|0x00|0x49|0x32|0x49|0x1e|0x32|0x10|0x03
+
+|0x49 = setpoint ph (needs to be divided by 10)
+|0x41 = setpoint acl (needs to multiplicated by 10)
+|0x47 = current ph (needs to be divided by 10)
+|0x4a = current orp (needs to multiplicated by 10)
+
+*/
+
 int _prepare_swg_message(unsigned char type, unsigned char *packet_buffer, int packet_length)
 {
   int length = 0;
   packet_buffer[length++] = PCOL_JANDY;
-  packet_buffer[length++] = AR_ID;
+  packet_buffer[length++] = _apconfig_.device_id;
 
   switch (type) {
     case CMD_PROBE:
@@ -141,6 +168,46 @@ int prepare_swg_message(unsigned char *packet_buffer, int packet_length)
   return rtn;
 }
 
+void zodiac_tri_chemlink_reply(unsigned char *packet_buffer, int packet_length)
+{
+  unsigned char corrected_status;
+  corrected_status = (packet_buffer[7] == SWG_STATUS_ON && _apdata_.Percent < 0) ? SWG_STATUS_OFF : packet_buffer[7];
+
+  // Has status changed.
+  if (_apdata_.status != corrected_status)
+  {
+    _apdata_.status = corrected_status;
+    _apdata_.changed = true;
+  }
+
+ // Need to figure this out, 6 is a guess
+  if (_apdata_.PPM != packet_buffer[6] * 100)
+      {
+        _apdata_.PPM = packet_buffer[6] * 100;
+        _apdata_.changed = true;
+      }
+  
+  if ( _apdata_.Ph != packet_buffer[10] / 10) {
+    _apdata_.Ph = packet_buffer[10] / 10;
+    _apdata_.changed = true;
+  }
+  if ( _apdata_.ORP != packet_buffer[11] * 10) {
+    _apdata_.ORP = packet_buffer[11] * 10;
+    _apdata_.changed = true;
+  }
+  if ( _apdata_.ph_setpoint != packet_buffer[8] / 10) {
+    _apdata_.ph_setpoint = packet_buffer[8] / 10;
+    _apdata_.changed = true;
+  }
+  if ( _apdata_.acl_setpoint != packet_buffer[9] * 10) {
+    _apdata_.acl_setpoint = packet_buffer[9] * 10;
+    _apdata_.changed = true;
+  }
+
+  logMessage(LOG_DEBUG, "Received TRI Chem Ph %d, ORP %d, ph_setpoint %d, aclsetpoint %d, PPM %d\n", _apdata_.Ph,  _apdata_.ORP, _apdata_.ph_setpoint, _apdata_.acl_setpoint,_apdata_.PPM);
+
+}
+
 void action_swg_message(unsigned char *packet_buffer, int packet_length)
 {
   unsigned char corrected_status;
@@ -159,6 +226,10 @@ void action_swg_message(unsigned char *packet_buffer, int packet_length)
         _next_msg = CMD_PERCENT;
       break;
     case CMD_PPM:
+      if (packet_length > 11 ) {
+        zodiac_tri_chemlink_reply(packet_buffer, packet_length);
+        break;
+      }
       logMessage(LOG_DEBUG_SERIAL, "Received PPM %d\n", (packet_buffer[4] * 100));
 
       if (_apdata_.connected != true)
@@ -185,7 +256,7 @@ void action_swg_message(unsigned char *packet_buffer, int packet_length)
 
       if (getLogLevel() >= LOG_DEBUG_SERIAL && _apdata_.status != 0x00)
         debugStatusPrint();
-
+    
     case CMD_MSG: // Want to fall through
       //send_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_ar_prms.Percent, NUL);
       //send_3byte_command(rs_fd, AR_ID, CMD_PERCENT, (unsigned char)_apdata_.Percent, NUL);

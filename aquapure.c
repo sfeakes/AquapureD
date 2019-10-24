@@ -210,6 +210,11 @@ void main_loop() {
 
   mg_mgr_poll(&mgr, 500);
 
+#ifdef TESTING
+  unsigned char test_packet[] = {0x10,0x02,0x00,0x16,0x03,0x03,0x02,0x00,0x49,0x41,0x47,0x4a,0x4b,0x10,0x03};
+  action_swg_message(test_packet, 14);
+#endif
+
   //send_1byte_command(rs_fd, AR_ID, CMD_PROBE);
 
   //logMessage(LOG_DEBUG_SERIAL,"Send Probe\n");

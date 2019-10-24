@@ -19,8 +19,12 @@ struct apdata
 {
   int PPM;
   int Percent;
+  int Ph;
+  int ORP;
   int last_generating_percent;
   int default_percent;
+  int ph_setpoint;
+  int acl_setpoint;
   //bool generating;
   bool boost;
   unsigned char status;

@@ -11,7 +11,7 @@
 #define DEFAULT_WEBPORT      "80"
 #define DEFAULT_WEBROOT      "./"
 #define DEFAULT_SERIALPORT   "/dev/ttyUSB0"
-#define DEFAULT_DEVICE_ID    "0x0a"
+//#define DEFAULT_DEVICE_ID    "0x0a"
 #define DEFAULT_MQTT_DZ_IN   NULL
 #define DEFAULT_MQTT_DZ_OUT  NULL
 #define DEFAULT_MQTT_AQ_TP   NULL
@@ -29,6 +29,7 @@ const extern struct apconfig _apconfig_;
 struct apconfig
 {
   char name[20];
+  
   char web_directory[512];
   char log_file[512];
   char serial_port[50];

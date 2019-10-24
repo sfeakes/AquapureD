@@ -57,7 +57,7 @@ bool check_jandy_checksum(unsigned char* packet, int length)
 
 bool check_pentair_checksum(unsigned char* packet, int length)
 {
-  printf("check_pentair_checksum \n");
+  //printf("check_pentair_checksum \n");
   int i, sum, n;
   n = packet[8] + 9;
   //n = packet[8] + 8;
@@ -294,6 +294,9 @@ void send_3byte_command(int fd, unsigned char destination, unsigned char b1, uns
  Should produce
 {0xFF, 0x00, 0xFF, 0xA5, 0x07, 0x0F, 0x10, 0x08, 0x0D, 0x55, 0x55, 0x5B, 0x2A, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x02, 0x9E};
  <-------  headder ----> <-- type to from type-> <len> <------------------------------ data ----------------------------------------> <checksum>
+*/
+/*
+NSF come back and remove first character 
 */
 
 void send_pentair_command(int fd, unsigned char *packet_buffer, int size)

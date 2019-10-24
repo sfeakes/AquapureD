@@ -192,11 +192,26 @@ int _build_swg_device_JSON(const struct apdata *aqdata, char* buffer, int size, 
                                    ((homekit_f)?SWG_PPM_F_TOPIC:SWG_PPM_TOPIC),
                                    "Salt Level PPM",
                                    "on",
-                                   ((homekit)?2:0),
-                                   ((homekit_f)?roundf(degFtoC(aqdata->PPM)):aqdata->PPM));
+                                   ((homekit_f)?2:0),((homekit_f)?roundf(degFtoC(aqdata->PPM)):aqdata->PPM));
   }
 
-  length += sprintf(buffer+length, "{\"type\": \"switch\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\" }",
+  if ( aqdata->Ph != TEMP_UNKNOWN ) {
+    length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" },",
+                                   SWG_PH_TOPIC,
+                                   "Ph level",
+                                   "on",
+                                   aqdata->Ph);
+  }
+
+  if ( aqdata->ORP != TEMP_UNKNOWN ) {
+    length += sprintf(buffer+length, "{\"type\": \"value\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"value\": \"%d\" },",
+                                   SWG_ORP_TOPIC,
+                                   "ORP level",
+                                   "on",
+                                   aqdata->ORP);
+  }
+
+    length += sprintf(buffer+length, "{\"type\": \"switch\", \"id\": \"%s\", \"name\": \"%s\", \"state\": \"%s\", \"status\": \"%s\" }",
                                    SWG_BOOST_TOPIC,
                                    "Boost pool",
                                    aqdata->boost == true?JSON_ON:JSON_OFF,

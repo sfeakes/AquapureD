@@ -201,6 +201,12 @@ void readCfg (char *cfgFile)
   if (_apconfig_.log_level != LOG_DEBUG)
     _apconfig_.log_level = text2elevel(str);
 
+  //strtoul(cleanalloc(value), NULL, 16);
+  ini_gets("AQUACONTROLD", "SWG_DEVICE_ID", "0x50", str, sizearray(str), cfgFile);
+  _apconfig_.device_id = strtoul(str, NULL, 16);
+
+//printf("ID = %d | %s\n",_apconfig_.device_id,str);
+
   ini_gets("AQUACONTROLD", "NAME", AQUAPURED_NAME, _apconfig_.name, sizearray(_apconfig_.name), cfgFile);
   ini_gets("AQUACONTROLD", "WEB_PORT", "0", _apconfig_.socket_port, sizearray(_apconfig_.socket_port), cfgFile);
   ini_gets("AQUACONTROLD", "WEB_DIRECTORY", "./", _apconfig_.web_directory, sizearray(_apconfig_.web_directory), cfgFile);
